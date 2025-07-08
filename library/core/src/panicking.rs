@@ -30,7 +30,7 @@
 
 use crate::fmt;
 use crate::intrinsics::const_eval_select;
-use crate::panic::{Location, PanicInfo};
+use crate::panic::{Location, PanicInfo, const_panic};
 
 #[cfg(feature = "panic_immediate_abort")]
 const _: () = assert!(cfg!(panic = "abort"), "panic_immediate_abort requires -C panic=abort");
@@ -390,7 +390,7 @@ pub enum AssertKind {
 #[cfg_attr(feature = "panic_immediate_abort", inline)]
 #[track_caller]
 #[doc(hidden)]
-pub fn assert_failed<T, U>(
+pub const fn assert_failed<T, U>(
     kind: AssertKind,
     left: &T,
     right: &U,
@@ -408,7 +408,7 @@ where
 #[cfg_attr(feature = "panic_immediate_abort", inline)]
 #[track_caller]
 #[doc(hidden)]
-pub fn assert_matches_failed<T: fmt::Debug + ?Sized>(
+pub const fn assert_matches_failed<T: fmt::Debug + ?Sized>(
     left: &T,
     right: &str,
     args: Option<fmt::Arguments<'_>>,
@@ -427,7 +427,7 @@ pub fn assert_matches_failed<T: fmt::Debug + ?Sized>(
 #[cfg_attr(not(feature = "panic_immediate_abort"), inline(never), cold, optimize(size))]
 #[cfg_attr(feature = "panic_immediate_abort", inline)]
 #[track_caller]
-fn assert_failed_inner(
+const fn assert_failed_inner(
     kind: AssertKind,
     left: &dyn fmt::Debug,
     right: &dyn fmt::Debug,
@@ -440,15 +440,14 @@ fn assert_failed_inner(
     };
 
     match args {
-        Some(args) => panic!(
-            r#"assertion `left {op} right` failed: {args}
+        Some(args) => const_panic!(
+           "Assertion failed", r#"assertion `left {op} right` failed: {args}
   left: {left:?}
- right: {right:?}"#
+ right: {right:?}"#, op: &str = op, left: &dyn fmt::Debug = left, right: &dyn fmt::Debug = right, args: fmt::Arguments<'_> = args
         ),
-        None => panic!(
-            r#"assertion `left {op} right` failed
+        None => const_panic!(
+           "Assertion failed", r#"assertion `left {op} right` failed
   left: {left:?}
- right: {right:?}"#
-        ),
+ right: {right:?}"#, op: &str = op, left: &dyn fmt::Debug = left, right: &dyn fmt::Debug = right, ),
     }
 }

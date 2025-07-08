@@ -1,0 +1,28 @@
+error[E0080]: evaluation panicked: assertion failed: a == b
+  --> $DIR/const-assert-eq.rs:14:15
+   |
+LL | const G: i8 = foo(1,2);
+   |               ^^^^^^^^ evaluation of `G` failed inside this call
+   |
+note: inside `foo`
+  --> $DIR/const-assert-eq.rs:2:5
+   |
+LL |     assert!(a == b);
+   |     ^^^^^^^^^^^^^^^ the failure occurred here
+
+error[E0080]: evaluation panicked: Assertion failed
+  --> $DIR/const-assert-eq.rs:16:15
+   |
+LL | const E: i8 = bar(1,2);
+   |               ^^^^^^^^ evaluation of `E` failed inside this call
+   |
+note: inside `bar`
+  --> $DIR/const-assert-eq.rs:7:5
+   |
+LL |     assert_eq!(a, b);
+   |     ^^^^^^^^^^^^^^^^ the failure occurred here
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0080`.
