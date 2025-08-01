@@ -50,7 +50,6 @@ const UNIT_CLONE: () = UNIT.clone();
 const BOOL_CLONE: bool = BOOL.clone();
 const CHAR_CLONE: char = CHAR.clone();
 const ASCII_CHAR_CLONE: std::ascii::Char = ASCII_CHAR.clone();
-//~^ ERROR: the trait bound `Char: const Clone` is not satisfied
 const USIZE_CLONE: usize = USIZE.clone();
 const U8_CLONE: u8 = U8.clone();
 const U16_CLONE: u16 = U16.clone();

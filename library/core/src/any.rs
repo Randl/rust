@@ -705,7 +705,8 @@ impl dyn Any + Send + Sync {
 ///     std::mem::forget(fake_one_ring);
 /// }
 /// ```
-#[derive(Clone, Copy, Eq, PartialOrd, Ord)]
+#[derive(PartialOrd, Ord)]
+#[derive_const(Clone, Copy, Eq)]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[lang = "type_id"]
 pub struct TypeId {

@@ -8,7 +8,7 @@ use crate::{cmp, fmt, hash, mem, num};
 /// Note that particularly large alignments, while representable in this type,
 /// are likely not to be supported by actual allocators and linkers.
 #[unstable(feature = "ptr_alignment_type", issue = "102070")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Alignment(AlignmentEnum);
 
@@ -240,7 +240,7 @@ impl const Default for Alignment {
 }
 
 #[cfg(target_pointer_width = "16")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(u16)]
 enum AlignmentEnum {
     _Align1Shl0 = 1 << 0,
@@ -262,7 +262,7 @@ enum AlignmentEnum {
 }
 
 #[cfg(target_pointer_width = "32")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(u32)]
 enum AlignmentEnum {
     _Align1Shl0 = 1 << 0,
@@ -300,7 +300,7 @@ enum AlignmentEnum {
 }
 
 #[cfg(target_pointer_width = "64")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(u64)]
 enum AlignmentEnum {
     _Align1Shl0 = 1 << 0,
