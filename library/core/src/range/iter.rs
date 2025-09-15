@@ -1,6 +1,7 @@
 use crate::iter::{
     FusedIterator, Step, TrustedLen, TrustedRandomAccess, TrustedRandomAccessNoCoerce, TrustedStep,
 };
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::range::{Range, RangeFrom, RangeInclusive, legacy};
 
@@ -22,11 +23,13 @@ macro_rules! unsafe_range_trusted_random_access_impl {
     ($($t:ty)*) => ($(
         #[doc(hidden)]
         #[unstable(feature = "trusted_random_access", issue = "none")]
-        unsafe impl TrustedRandomAccess for IterRange<$t> {}
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe impl const TrustedRandomAccess  for IterRange<$t> {}
 
         #[doc(hidden)]
         #[unstable(feature = "trusted_random_access", issue = "none")]
-        unsafe impl TrustedRandomAccessNoCoerce for IterRange<$t> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe impl const TrustedRandomAccessNoCoerce for IterRange<$t> {
             const MAY_HAVE_SIDE_EFFECT: bool = false;
         }
     )*)
@@ -49,7 +52,8 @@ unsafe_range_trusted_random_access_impl! {
 }
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> Iterator for IterRange<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const Iterator for IterRange<A> {
     type Item = A;
 
     #[inline]
@@ -80,7 +84,7 @@ impl<A: Step> Iterator for IterRange<A> {
     #[inline]
     fn min(self) -> Option<A>
     where
-        A: Ord,
+        A: [const] Ord,
     {
         self.0.min()
     }
@@ -88,7 +92,7 @@ impl<A: Step> Iterator for IterRange<A> {
     #[inline]
     fn max(self) -> Option<A>
     where
-        A: Ord,
+        A: [const] Ord,
     {
         self.0.max()
     }
@@ -117,7 +121,8 @@ impl<A: Step> Iterator for IterRange<A> {
 }
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> DoubleEndedIterator for IterRange<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const DoubleEndedIterator for IterRange<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.0.next_back()
@@ -135,13 +140,16 @@ impl<A: Step> DoubleEndedIterator for IterRange<A> {
 }
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<A: TrustedStep> TrustedLen for IterRange<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<A: [const] TrustedStep + [const] Destruct> const TrustedLen for IterRange<A> {}
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> FusedIterator for IterRange<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const FusedIterator for IterRange<A> {}
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> IntoIterator for Range<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const IntoIterator for Range<A> {
     type Item = A;
     type IntoIter = IterRange<A>;
 
@@ -169,7 +177,8 @@ impl<A: Step> IterRangeInclusive<A> {
 }
 
 #[unstable(feature = "trusted_random_access", issue = "none")]
-impl<A: Step> Iterator for IterRangeInclusive<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const Iterator for IterRangeInclusive<A> {
     type Item = A;
 
     #[inline]
@@ -200,7 +209,7 @@ impl<A: Step> Iterator for IterRangeInclusive<A> {
     #[inline]
     fn min(self) -> Option<A>
     where
-        A: Ord,
+        A: [const] Ord,
     {
         self.0.min()
     }
@@ -208,7 +217,7 @@ impl<A: Step> Iterator for IterRangeInclusive<A> {
     #[inline]
     fn max(self) -> Option<A>
     where
-        A: Ord,
+        A: [const] Ord,
     {
         self.0.max()
     }
@@ -225,7 +234,8 @@ impl<A: Step> Iterator for IterRangeInclusive<A> {
 }
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> DoubleEndedIterator for IterRangeInclusive<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const DoubleEndedIterator for IterRangeInclusive<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.0.next_back()
@@ -243,13 +253,16 @@ impl<A: Step> DoubleEndedIterator for IterRangeInclusive<A> {
 }
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<A: TrustedStep> TrustedLen for IterRangeInclusive<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<A: [const] TrustedStep + [const] Destruct> const TrustedLen for IterRangeInclusive<A> {}
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> FusedIterator for IterRangeInclusive<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const FusedIterator for IterRangeInclusive<A> {}
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> IntoIterator for RangeInclusive<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const IntoIterator for RangeInclusive<A> {
     type Item = A;
     type IntoIter = IterRangeInclusive<A>;
 
@@ -269,14 +282,16 @@ impl<A: Step> IntoIterator for RangeInclusive<A> {
 macro_rules! range_exact_iter_impl {
     ($($t:ty)*) => ($(
         #[unstable(feature = "new_range_api", issue = "125687")]
-        impl ExactSizeIterator for IterRange<$t> { }
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl const ExactSizeIterator for IterRange<$t> { }
     )*)
 }
 
 macro_rules! range_incl_exact_iter_impl {
     ($($t:ty)*) => ($(
         #[unstable(feature = "new_range_api", issue = "125687")]
-        impl ExactSizeIterator for IterRangeInclusive<$t> { }
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl const ExactSizeIterator for IterRangeInclusive<$t> { }
     )*)
 }
 
@@ -297,13 +312,15 @@ pub struct IterRangeFrom<A>(legacy::RangeFrom<A>);
 
 impl<A> IterRangeFrom<A> {
     /// Returns the remainder of the range being iterated over.
-    pub fn remainder(self) -> RangeFrom<A> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn remainder(self) -> RangeFrom<A> {
         RangeFrom { start: self.0.start }
     }
 }
 
 #[unstable(feature = "trusted_random_access", issue = "none")]
-impl<A: Step> Iterator for IterRangeFrom<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const Iterator for IterRangeFrom<A> {
     type Item = A;
 
     #[inline]
@@ -323,13 +340,16 @@ impl<A: Step> Iterator for IterRangeFrom<A> {
 }
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<A: TrustedStep> TrustedLen for IterRangeFrom<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<A: [const] TrustedStep + [const] Destruct> const TrustedLen for IterRangeFrom<A> {}
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> FusedIterator for IterRangeFrom<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const FusedIterator for IterRangeFrom<A> {}
 
 #[unstable(feature = "new_range_api", issue = "125687")]
-impl<A: Step> IntoIterator for RangeFrom<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const IntoIterator for RangeFrom<A> {
     type Item = A;
     type IntoIter = IterRangeFrom<A>;
 

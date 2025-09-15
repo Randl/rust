@@ -2,7 +2,7 @@
 
 use crate::cell::CloneFromCell;
 use crate::cmp::Ordering::{self, *};
-use crate::marker::{ConstParamTy_, StructuralPartialEq};
+use crate::marker::{ConstParamTy_, Destruct, StructuralPartialEq};
 use crate::ops::ControlFlow::{self, Break, Continue};
 
 // Recursive macro for implementing n-ary tuple functions and operations
@@ -121,7 +121,8 @@ macro_rules! tuple_impls {
         maybe_tuple_doc! {
             $($T)+ @
             #[stable(feature = "rust1", since = "1.0.0")]
-            impl<$($T: Default),+> Default for ($($T,)+) {
+            #[rustc_const_unstable(feature = "const_default", issue = "143894")]
+            impl<$($T: ~const Default),+> const Default for ($($T,)+) {
                 #[inline]
                 fn default() -> ($($T,)+) {
                     ($({ let x: $T = Default::default(); x},)+)
@@ -132,8 +133,8 @@ macro_rules! tuple_impls {
         maybe_tuple_doc! {
             $($T)+ @
             #[stable(feature = "array_tuple_conv", since = "1.71.0")]
-            // can't do const From due to https://github.com/rust-lang/rust/issues/144280
-            impl<T> From<[T; ${count($T)}]> for ($(${ignore($T)} T,)+) {
+            #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+            impl<T: ~const Destruct> const From<[T; ${count($T)}]> for ($(${ignore($T)} T,)+) {
                 #[inline]
                 #[allow(non_snake_case)]
                 fn from(array: [T; ${count($T)}]) -> Self {
@@ -146,8 +147,8 @@ macro_rules! tuple_impls {
         maybe_tuple_doc! {
             $($T)+ @
             #[stable(feature = "array_tuple_conv", since = "1.71.0")]
-            // can't do const From due to https://github.com/rust-lang/rust/issues/144280
-            impl<T> From<($(${ignore($T)} T,)+)> for [T; ${count($T)}] {
+            #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+            impl<T> const From<($(${ignore($T)} T,)+)> for [T; ${count($T)}] {
                 #[inline]
                 #[allow(non_snake_case)]
                 fn from(tuple: ($(${ignore($T)} T,)+)) -> Self {

@@ -126,7 +126,7 @@ impl<T> [T] {
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
-    pub fn sort(&mut self)
+    pub const fn sort(&mut self)
     where
         T: Ord,
     {
@@ -187,7 +187,7 @@ impl<T> [T] {
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "rust1", since = "1.0.0")]
     #[inline]
-    pub fn sort_by<F>(&mut self, mut compare: F)
+    pub const fn sort_by<F>(&mut self, mut compare: F)
     where
         F: FnMut(&T, &T) -> Ordering,
     {
@@ -242,7 +242,7 @@ impl<T> [T] {
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "slice_sort_by_key", since = "1.7.0")]
     #[inline]
-    pub fn sort_by_key<K, F>(&mut self, mut f: F)
+    pub const fn sort_by_key<K, F>(&mut self, mut f: F)
     where
         F: FnMut(&T) -> K,
         K: Ord,
@@ -307,7 +307,7 @@ impl<T> [T] {
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "slice_sort_by_cached_key", since = "1.34.0")]
     #[inline]
-    pub fn sort_by_cached_key<K, F>(&mut self, f: F)
+    pub const fn sort_by_cached_key<K, F>(&mut self, f: F)
     where
         F: FnMut(&T) -> K,
         K: Ord,

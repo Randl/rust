@@ -3,6 +3,7 @@ use crate::iter::adapters::SourceIter;
 use crate::iter::{
     ByRefSized, FusedIterator, InPlaceIterable, TrustedFused, TrustedRandomAccessNoCoerce,
 };
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, NeverShortCircuit, Try};
 
@@ -26,7 +27,8 @@ where
     I: Iterator,
 {
     #[track_caller]
-    pub(in crate::iter) fn new(iter: I) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I) -> Self {
         assert!(N != 0, "chunk size must be non-zero");
         Self { iter, remainder: None }
     }
@@ -45,8 +47,13 @@ where
     /// assert_eq!(rem.next(), None);
     /// ```
     #[unstable(feature = "iter_array_chunks", reason = "recently added", issue = "100450")]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     #[inline]
-    pub fn into_remainder(mut self) -> Option<array::IntoIter<I::Item, N>> {
+    pub const fn into_remainder(mut self) -> Option<array::IntoIter<I::Item, N>>
+    where
+        I: [const] Iterator + [const] Destruct,
+        I::Item: [const] Destruct,
+    {
         if self.remainder.is_none() {
             while let Some(_) = self.next() {}
         }
@@ -54,10 +61,12 @@ where
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[unstable(feature = "iter_array_chunks", reason = "recently added", issue = "100450")]
-impl<I, const N: usize> Iterator for ArrayChunks<I, N>
+impl<I, const N: usize> const Iterator for ArrayChunks<I, N>
 where
-    I: Iterator,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = [I::Item; N];
 
@@ -81,8 +90,8 @@ where
     fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         let mut acc = init;
         loop {
@@ -102,16 +111,19 @@ where
     fn fold<B, F>(self, init: B, f: F) -> B
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
+        B: [const] Destruct,
     {
         <Self as SpecFold>::fold(self, init, f)
     }
 }
 
 #[unstable(feature = "iter_array_chunks", reason = "recently added", issue = "100450")]
-impl<I, const N: usize> DoubleEndedIterator for ArrayChunks<I, N>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, const N: usize> const DoubleEndedIterator for ArrayChunks<I, N>
 where
-    I: DoubleEndedIterator + ExactSizeIterator,
+    I: [const] DoubleEndedIterator + [const] ExactSizeIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -121,8 +133,8 @@ where
     fn try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         // We are iterating from the back we need to first handle the remainder.
         self.next_back_remainder();
@@ -146,12 +158,18 @@ where
     impl_fold_via_try_fold! { rfold -> try_rfold }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<I, const N: usize> ArrayChunks<I, N>
 where
     I: DoubleEndedIterator + ExactSizeIterator,
 {
     /// Updates `self.remainder` such that `self.iter.len` is divisible by `N`.
-    fn next_back_remainder(&mut self) {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn next_back_remainder(&mut self)
+    where
+        I: [const] DoubleEndedIterator + [const] ExactSizeIterator + [const] Destruct,
+        I::Item: [const] Destruct,
+    {
         // Make sure to not override `self.remainder` with an empty array
         // when `next_back` is called after `ArrayChunks` exhaustion.
         if self.remainder.is_some() {
@@ -195,36 +213,44 @@ where
     }
 }
 
-trait SpecFold: Iterator {
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+trait SpecFold: [const] Iterator {
     fn fold<B, F>(self, init: B, f: F) -> B
     where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B;
+        Self: Sized + [const] Destruct,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
+        B: [const] Destruct;
 }
 
-impl<I, const N: usize> SpecFold for ArrayChunks<I, N>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, const N: usize> const SpecFold for ArrayChunks<I, N>
 where
-    I: Iterator,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     default fn fold<B, F>(mut self, init: B, f: F) -> B
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
+        F: [const] FnMut(B, Self::Item) -> B,
+        B: [const] Destruct,
     {
         self.try_fold(init, NeverShortCircuit::wrap_mut_2(f)).0
     }
 }
 
-impl<I, const N: usize> SpecFold for ArrayChunks<I, N>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, const N: usize> const SpecFold for ArrayChunks<I, N>
 where
-    I: Iterator + TrustedRandomAccessNoCoerce,
+    I: [const] Iterator + [const] TrustedRandomAccessNoCoerce + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn fold<B, F>(mut self, init: B, mut f: F) -> B
     where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
+        Self: Sized + [const] Destruct,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
     {
         let mut accum = init;
         let inner_len = self.iter.size();
@@ -251,9 +277,10 @@ where
 }
 
 #[unstable(issue = "none", feature = "inplace_iteration")]
-unsafe impl<I, const N: usize> SourceIter for ArrayChunks<I, N>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I, const N: usize> const SourceIter for ArrayChunks<I, N>
 where
-    I: SourceIter + Iterator,
+    I: [const] SourceIter + [const] Iterator,
 {
     type Source = I::Source;
 

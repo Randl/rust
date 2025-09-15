@@ -1486,7 +1486,8 @@ struct Guard<'a, T> {
     initialized: usize,
 }
 
-impl<'a, T> Drop for Guard<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Drop for Guard<'a, T> {
     fn drop(&mut self) {
         let initialized_part = &mut self.slice[..self.initialized];
         // SAFETY: this raw sub-slice will contain only initialized objects.

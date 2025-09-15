@@ -543,6 +543,7 @@
 use crate::iter::{self, FusedIterator, TrustedLen};
 use crate::marker::Destruct;
 use crate::ops::{self, ControlFlow, Deref, DerefMut};
+use crate::panic::const_panic;
 use crate::{convert, fmt, hint};
 
 /// `Result` is a type that represents either success ([`Ok`]) or failure ([`Err`]).
@@ -1224,7 +1225,8 @@ impl<T, E> Result<T, E> {
     #[inline(always)]
     #[track_caller]
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn unwrap(self) -> T
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn unwrap(self) -> T
     where
         E: fmt::Debug,
     {
@@ -1677,7 +1679,12 @@ impl<T, E> Result<T, E> {
     #[inline]
     #[track_caller]
     #[stable(feature = "option_result_unwrap_unchecked", since = "1.58.0")]
-    pub unsafe fn unwrap_err_unchecked(self) -> E {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn unwrap_err_unchecked(self) -> E
+    where
+        T: [const] Destruct,
+        E: [const] Destruct,
+    {
         match self {
             // SAFETY: the safety contract must be upheld by the caller.
             Ok(_) => unsafe { hint::unreachable_unchecked() },
@@ -1729,9 +1736,11 @@ impl<T, E> Result<&T, E> {
     /// ```
     #[inline]
     #[stable(feature = "result_cloned", since = "1.59.0")]
-    pub fn cloned(self) -> Result<T, E>
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn cloned(self) -> Result<T, E>
     where
         T: Clone,
+        E: [const] Destruct,
     {
         self.map(|t| t.clone())
     }
@@ -1780,9 +1789,11 @@ impl<T, E> Result<&mut T, E> {
     /// ```
     #[inline]
     #[stable(feature = "result_cloned", since = "1.59.0")]
-    pub fn cloned(self) -> Result<T, E>
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn cloned(self) -> Result<T, E>
     where
         T: Clone,
+        E: [const] Destruct,
     {
         self.map(|t| t.clone())
     }
@@ -1858,8 +1869,8 @@ impl<T, E> Result<Result<T, E>, E> {
 #[inline(never)]
 #[cold]
 #[track_caller]
-fn unwrap_failed(msg: &str, error: &dyn fmt::Debug) -> ! {
-    panic!("{msg}: {error:?}");
+const fn unwrap_failed(msg: &str, error: &dyn fmt::Debug) -> ! {
+    const_panic!("Unwrap failed", "{msg}: {error:?}", msg: &str = msg, error: &dyn fmt::Debug = error);
 }
 
 // This is a separate function to avoid constructing a `dyn Debug`
@@ -1947,7 +1958,8 @@ impl<'a, T, E> IntoIterator for &'a Result<T, E> {
 }
 
 #[stable(since = "1.4.0", feature = "result_iter")]
-impl<'a, T, E> IntoIterator for &'a mut Result<T, E> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, E> const IntoIterator for &'a mut Result<T, E> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -2021,7 +2033,8 @@ pub struct IterMut<'a, T: 'a> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> Iterator for IterMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for IterMut<'a, T> {
     type Item = &'a mut T;
 
     #[inline]
@@ -2036,7 +2049,8 @@ impl<'a, T> Iterator for IterMut<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> DoubleEndedIterator for IterMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for IterMut<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a mut T> {
         self.inner.take()

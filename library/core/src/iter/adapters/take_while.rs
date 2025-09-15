@@ -1,6 +1,7 @@
 use crate::fmt;
 use crate::iter::adapters::SourceIter;
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 
@@ -21,7 +22,7 @@ pub struct TakeWhile<I, P> {
 }
 
 impl<I, P> TakeWhile<I, P> {
-    pub(in crate::iter) fn new(iter: I, predicate: P) -> TakeWhile<I, P> {
+    pub(in crate::iter) const fn new(iter: I, predicate: P) -> TakeWhile<I, P> {
         TakeWhile { iter, flag: false, predicate }
     }
 }
@@ -34,14 +35,18 @@ impl<I: fmt::Debug, P> fmt::Debug for TakeWhile<I, P> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I: Iterator, P> Iterator for TakeWhile<I, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I: [const] Iterator, P> const Iterator for TakeWhile<I, P>
 where
-    P: FnMut(&I::Item) -> bool,
+    P: [const] FnMut(&I::Item) -> bool,
 {
     type Item = I::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item> {
+    fn next(&mut self) -> Option<I::Item>
+    where
+        I::Item: [const] Destruct,
+    {
         if self.flag {
             None
         } else {
@@ -69,14 +74,14 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        R: [const] Try<Output = Acc>,
     {
-        fn check<'a, T, Acc, R: Try<Output = Acc>>(
+        const fn check<'a, T, Acc, R: Try<Output = Acc>>(
             flag: &'a mut bool,
             p: &'a mut impl FnMut(&T) -> bool,
             mut fold: impl FnMut(Acc, T) -> R + 'a,
-        ) -> impl FnMut(Acc, T) -> ControlFlow<R, Acc> + 'a {
+        ) -> impl [const] FnMut(Acc, T) -> ControlFlow<R, Acc> + 'a + [const] Destruct {
             move |acc, x| {
                 if p(&x) {
                     ControlFlow::from_try(fold(acc, x))

@@ -771,7 +771,8 @@ pub const fn cold_path() {
 /// ```
 #[inline(always)]
 #[stable(feature = "select_unpredictable", since = "1.88.0")]
-pub fn select_unpredictable<T>(condition: bool, true_val: T, false_val: T) -> T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn select_unpredictable<T>(condition: bool, true_val: T, false_val: T) -> T {
     // FIXME(https://github.com/rust-lang/unsafe-code-guidelines/issues/245):
     // Change this to use ManuallyDrop instead.
     let mut true_val = MaybeUninit::new(true_val);

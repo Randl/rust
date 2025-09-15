@@ -2,6 +2,7 @@ use super::{
     FusedIterator, TrustedLen, TrustedRandomAccess, TrustedRandomAccessNoCoerce, TrustedStep,
 };
 use crate::ascii::Char as AsciiChar;
+use crate::marker::Destruct;
 use crate::mem;
 use crate::net::{Ipv4Addr, Ipv6Addr};
 use crate::num::NonZero;
@@ -22,7 +23,9 @@ unsafe_impl_trusted_step![AsciiChar char i8 i16 i32 i64 i128 isize u8 u16 u32 u6
 /// The *predecessor* operation moves towards values that compare lesser.
 #[rustc_diagnostic_item = "range_step"]
 #[unstable(feature = "step_trait", issue = "42168")]
-pub trait Step: Clone + PartialOrd + Sized {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+#[const_trait]
+pub trait Step: [const] Clone + [const] PartialOrd + Sized {
     /// Returns the bounds on the number of *successor* steps required to get from `start` to `end`
     /// like [`Iterator::size_hint()`][Iterator::size_hint()].
     ///
@@ -254,8 +257,9 @@ macro_rules! step_integer_impls {
     } => {
         $(
             #[allow(unreachable_patterns)]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
             #[unstable(feature = "step_trait", reason = "recently redesigned", issue = "42168")]
-            impl Step for $u_narrower {
+            impl const Step for $u_narrower {
                 step_identical_methods!();
                 step_unsigned_methods!();
 
@@ -288,8 +292,9 @@ macro_rules! step_integer_impls {
             }
 
             #[allow(unreachable_patterns)]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
             #[unstable(feature = "step_trait", reason = "recently redesigned", issue = "42168")]
-            impl Step for $i_narrower {
+            impl const Step for $i_narrower {
                 step_identical_methods!();
                 step_signed_methods!($u_narrower);
 
@@ -354,8 +359,9 @@ macro_rules! step_integer_impls {
 
         $(
             #[allow(unreachable_patterns)]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
             #[unstable(feature = "step_trait", reason = "recently redesigned", issue = "42168")]
-            impl Step for $u_wider {
+            impl const Step for $u_wider {
                 step_identical_methods!();
                 step_unsigned_methods!();
 
@@ -384,8 +390,9 @@ macro_rules! step_integer_impls {
             }
 
             #[allow(unreachable_patterns)]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
             #[unstable(feature = "step_trait", reason = "recently redesigned", issue = "42168")]
-            impl Step for $i_wider {
+            impl const Step for $i_wider {
                 step_identical_methods!();
                 step_signed_methods!($u_wider);
 
@@ -442,7 +449,8 @@ step_integer_impls! {
 }
 
 #[unstable(feature = "step_trait", reason = "recently redesigned", issue = "42168")]
-impl Step for char {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const Step for char {
     #[inline]
     fn steps_between(&start: &char, &end: &char) -> (usize, Option<usize>) {
         let start = start as u32;
@@ -637,7 +645,8 @@ impl Step for Ipv6Addr {
 macro_rules! range_exact_iter_impl {
     ($($t:ty)*) => ($(
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl ExactSizeIterator for ops::Range<$t> { }
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl const ExactSizeIterator for ops::Range<$t> { }
     )*)
 }
 
@@ -647,11 +656,13 @@ macro_rules! unsafe_range_trusted_random_access_impl {
     ($($t:ty)*) => ($(
         #[doc(hidden)]
         #[unstable(feature = "trusted_random_access", issue = "none")]
-        unsafe impl TrustedRandomAccess for ops::Range<$t> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe  impl const TrustedRandomAccess for ops::Range<$t> {}
 
         #[doc(hidden)]
         #[unstable(feature = "trusted_random_access", issue = "none")]
-        unsafe impl TrustedRandomAccessNoCoerce for ops::Range<$t> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe  impl const TrustedRandomAccessNoCoerce for ops::Range<$t> {
             const MAY_HAVE_SIDE_EFFECT: bool = false;
         }
     )*)
@@ -660,11 +671,15 @@ macro_rules! unsafe_range_trusted_random_access_impl {
 macro_rules! range_incl_exact_iter_impl {
     ($($t:ty)*) => ($(
         #[stable(feature = "inclusive_range", since = "1.26.0")]
-        impl ExactSizeIterator for ops::RangeInclusive<$t> { }
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl const ExactSizeIterator for ops::RangeInclusive<$t> { }
     )*)
 }
 
 /// Specialization implementations for `Range`.
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+#[const_trait]
 trait RangeIteratorImpl {
     type Item;
 
@@ -679,7 +694,8 @@ trait RangeIteratorImpl {
     fn spec_advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>>;
 }
 
-impl<A: Step> RangeIteratorImpl for ops::Range<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const RangeIteratorImpl for ops::Range<A> {
     type Item = A;
 
     #[inline]
@@ -759,7 +775,8 @@ impl<A: Step> RangeIteratorImpl for ops::Range<A> {
     }
 }
 
-impl<T: TrustedStep> RangeIteratorImpl for ops::Range<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] TrustedStep + [const] Destruct> const RangeIteratorImpl for ops::Range<T> {
     #[inline]
     fn spec_next(&mut self) -> Option<T> {
         if self.start < self.end {
@@ -842,7 +859,8 @@ impl<T: TrustedStep> RangeIteratorImpl for ops::Range<T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A: Step> Iterator for ops::Range<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const Iterator for ops::Range<A> {
     type Item = A;
 
     #[inline]
@@ -966,7 +984,8 @@ range_incl_exact_iter_impl! {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A: Step> DoubleEndedIterator for ops::Range<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const DoubleEndedIterator for ops::Range<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.spec_next_back()
@@ -1006,10 +1025,12 @@ impl<A: Step> DoubleEndedIterator for ops::Range<A> {
 unsafe impl<A: TrustedStep> TrustedLen for ops::Range<A> {}
 
 #[stable(feature = "fused", since = "1.26.0")]
-impl<A: Step> FusedIterator for ops::Range<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const FusedIterator for ops::Range<A> {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A: Step> Iterator for ops::RangeFrom<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const Iterator for ops::RangeFrom<A> {
     type Item = A;
 
     #[inline]
@@ -1038,6 +1059,8 @@ unsafe impl<A: TrustedStep> TrustedLen for ops::RangeFrom<A> {}
 #[stable(feature = "fused", since = "1.26.0")]
 impl<A: Step> FusedIterator for ops::RangeFrom<A> {}
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+#[const_trait]
 trait RangeInclusiveIteratorImpl {
     type Item;
 
@@ -1046,19 +1069,20 @@ trait RangeInclusiveIteratorImpl {
     fn spec_try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>;
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>;
 
     // DoubleEndedIterator
     fn spec_next_back(&mut self) -> Option<Self::Item>;
     fn spec_try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>;
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>;
 }
 
-impl<A: Step> RangeInclusiveIteratorImpl for ops::RangeInclusive<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step> const RangeInclusiveIteratorImpl for ops::RangeInclusive<A> {
     type Item = A;
 
     #[inline]
@@ -1081,8 +1105,8 @@ impl<A: Step> RangeInclusiveIteratorImpl for ops::RangeInclusive<A> {
     default fn spec_try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, A) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, A) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         if self.is_empty() {
             return try { init };
@@ -1126,8 +1150,8 @@ impl<A: Step> RangeInclusiveIteratorImpl for ops::RangeInclusive<A> {
     default fn spec_try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, A) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, A) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         if self.is_empty() {
             return try { init };
@@ -1152,7 +1176,8 @@ impl<A: Step> RangeInclusiveIteratorImpl for ops::RangeInclusive<A> {
     }
 }
 
-impl<T: TrustedStep> RangeInclusiveIteratorImpl for ops::RangeInclusive<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] TrustedStep> const RangeInclusiveIteratorImpl for ops::RangeInclusive<T> {
     #[inline]
     fn spec_next(&mut self) -> Option<T> {
         if self.is_empty() {
@@ -1173,8 +1198,8 @@ impl<T: TrustedStep> RangeInclusiveIteratorImpl for ops::RangeInclusive<T> {
     fn spec_try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, T) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, T) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         if self.is_empty() {
             return try { init };
@@ -1218,8 +1243,8 @@ impl<T: TrustedStep> RangeInclusiveIteratorImpl for ops::RangeInclusive<T> {
     fn spec_try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, T) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, T) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         if self.is_empty() {
             return try { init };
@@ -1245,7 +1270,8 @@ impl<T: TrustedStep> RangeInclusiveIteratorImpl for ops::RangeInclusive<T> {
 }
 
 #[stable(feature = "inclusive_range", since = "1.26.0")]
-impl<A: Step> Iterator for ops::RangeInclusive<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const Iterator for ops::RangeInclusive<A> {
     type Item = A;
 
     #[inline]
@@ -1307,8 +1333,8 @@ impl<A: Step> Iterator for ops::RangeInclusive<A> {
     fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         self.spec_try_fold(init, f)
     }
@@ -1343,7 +1369,8 @@ impl<A: Step> Iterator for ops::RangeInclusive<A> {
 }
 
 #[stable(feature = "inclusive_range", since = "1.26.0")]
-impl<A: Step> DoubleEndedIterator for ops::RangeInclusive<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Step + [const] Destruct> const DoubleEndedIterator for ops::RangeInclusive<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.spec_next_back()
@@ -1381,8 +1408,8 @@ impl<A: Step> DoubleEndedIterator for ops::RangeInclusive<A> {
     fn try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         self.spec_try_rfold(init, f)
     }

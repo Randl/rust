@@ -60,9 +60,10 @@ where
 pub struct FromFn<F>(F);
 
 #[stable(feature = "iter_from_fn", since = "1.34.0")]
-impl<T, F> Iterator for FromFn<F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, F> const Iterator for FromFn<F>
 where
-    F: FnMut() -> Option<T>,
+    F: [const] FnMut() -> Option<T>,
 {
     type Item = T;
 

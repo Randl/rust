@@ -54,7 +54,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use = "this returns the result of the operation, \
                   without modifying the original"]
     #[inline]
-    pub fn try_cast_aligned<U>(self) -> Option<*mut U> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn try_cast_aligned<U>(self) -> Option<*mut U> {
         if self.is_aligned_to(align_of::<U>()) { Some(self.cast()) } else { None }
     }
 
@@ -141,7 +142,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use]
     #[inline(always)]
     #[stable(feature = "strict_provenance", since = "1.84.0")]
-    pub fn addr(self) -> usize {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn addr(self) -> usize {
         // A pointer-to-integer transmute currently has exactly the right semantics: it returns the
         // address without exposing the provenance. Note that this is *not* a stable guarantee about
         // transmute semantics, it relies on sysroot crates having special status.
@@ -174,7 +176,8 @@ impl<T: PointeeSized> *mut T {
     /// [`with_exposed_provenance_mut`]: with_exposed_provenance_mut
     #[inline(always)]
     #[stable(feature = "exposed_provenance", since = "1.84.0")]
-    pub fn expose_provenance(self) -> usize {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn expose_provenance(self) -> usize {
         self.cast::<()>() as usize
     }
 
@@ -192,7 +195,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use]
     #[inline]
     #[stable(feature = "strict_provenance", since = "1.84.0")]
-    pub fn with_addr(self, addr: usize) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn with_addr(self, addr: usize) -> Self {
         // This should probably be an intrinsic to avoid doing any sort of arithmetic, but
         // meanwhile, we can implement it with `wrapping_offset`, which preserves the pointer's
         // provenance.
@@ -211,7 +215,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use]
     #[inline]
     #[stable(feature = "strict_provenance", since = "1.84.0")]
-    pub fn map_addr(self, f: impl FnOnce(usize) -> usize) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn map_addr(self, f: impl [const] FnOnce(usize) -> usize) -> Self {
         self.with_addr(f(self.addr()))
     }
 
@@ -525,7 +530,8 @@ impl<T: PointeeSized> *mut T {
     #[unstable(feature = "ptr_mask", issue = "98290")]
     #[must_use = "returns a new pointer rather than modifying its argument"]
     #[inline(always)]
-    pub fn mask(self, mask: usize) -> *mut T {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn mask(self, mask: usize) -> *mut T {
         intrinsics::ptr_mask(self.cast::<()>(), mask).cast_mut().with_metadata_of(self)
     }
 
@@ -1276,7 +1282,8 @@ impl<T: PointeeSized> *mut T {
     #[stable(feature = "pointer_methods", since = "1.26.0")]
     #[inline(always)]
     #[track_caller]
-    pub unsafe fn read_volatile(self) -> T
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn read_volatile(self) -> T
     where
         T: Sized,
     {
@@ -1450,7 +1457,8 @@ impl<T: PointeeSized> *mut T {
     #[stable(feature = "pointer_methods", since = "1.26.0")]
     #[inline(always)]
     #[track_caller]
-    pub unsafe fn write_volatile(self, val: T)
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn write_volatile(self, val: T)
     where
         T: Sized,
     {
@@ -1554,7 +1562,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use]
     #[inline]
     #[stable(feature = "align_offset", since = "1.36.0")]
-    pub fn align_offset(self, align: usize) -> usize
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn align_offset(self, align: usize) -> usize
     where
         T: Sized,
     {
@@ -1595,7 +1604,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use]
     #[inline]
     #[stable(feature = "pointer_is_aligned", since = "1.79.0")]
-    pub fn is_aligned(self) -> bool
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn is_aligned(self) -> bool
     where
         T: Sized,
     {
@@ -1635,7 +1645,8 @@ impl<T: PointeeSized> *mut T {
     #[must_use]
     #[inline]
     #[unstable(feature = "pointer_is_aligned_to", issue = "96284")]
-    pub fn is_aligned_to(self, align: usize) -> bool {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn is_aligned_to(self, align: usize) -> bool {
         if !align.is_power_of_two() {
             panic!("is_aligned_to: align is not a power-of-two");
         }
@@ -1767,7 +1778,7 @@ impl<T> *mut [T] {
     #[inline(always)]
     #[track_caller]
     #[unstable(feature = "raw_slice_split", issue = "95595")]
-    pub unsafe fn split_at_mut(self, mid: usize) -> (*mut [T], *mut [T]) {
+    pub const unsafe fn split_at_mut(self, mid: usize) -> (*mut [T], *mut [T]) {
         assert!(mid <= self.len());
         // SAFETY: The assert above is only a safety-net as long as `self.len()` is correct
         // The actual safety requirements of this function are the same as for `split_at_mut_unchecked`
@@ -1811,7 +1822,7 @@ impl<T> *mut [T] {
     /// ```
     #[inline(always)]
     #[unstable(feature = "raw_slice_split", issue = "95595")]
-    pub unsafe fn split_at_mut_unchecked(self, mid: usize) -> (*mut [T], *mut [T]) {
+    pub const unsafe fn split_at_mut_unchecked(self, mid: usize) -> (*mut [T], *mut [T]) {
         let len = self.len();
         let ptr = self.as_mut_ptr();
 
@@ -1999,7 +2010,8 @@ impl<T, const N: usize> *mut [T; N] {
 
 /// Pointer equality is by address, as produced by the [`<*mut T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> PartialEq for *mut T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: PointeeSized> const PartialEq for *mut T {
     #[inline(always)]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn eq(&self, other: &*mut T) -> bool {
@@ -2009,11 +2021,13 @@ impl<T: PointeeSized> PartialEq for *mut T {
 
 /// Pointer equality is an equivalence relation.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> Eq for *mut T {}
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<T: PointeeSized> const Eq for *mut T {}
 
 /// Pointer comparison is by address, as produced by the [`<*mut T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> Ord for *mut T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<T: PointeeSized> const Ord for *mut T {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn cmp(&self, other: &*mut T) -> Ordering {
@@ -2029,7 +2043,8 @@ impl<T: PointeeSized> Ord for *mut T {
 
 /// Pointer comparison is by address, as produced by the [`<*mut T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> PartialOrd for *mut T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<T: PointeeSized> const PartialOrd for *mut T {
     #[inline(always)]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn partial_cmp(&self, other: &*mut T) -> Option<Ordering> {
@@ -2062,7 +2077,8 @@ impl<T: PointeeSized> PartialOrd for *mut T {
 }
 
 #[stable(feature = "raw_ptr_default", since = "1.88.0")]
-impl<T: ?Sized + Thin> Default for *mut T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<T: ?Sized + Thin> const Default for *mut T {
     /// Returns the default value of [`null_mut()`][crate::ptr::null_mut].
     fn default() -> Self {
         crate::ptr::null_mut()

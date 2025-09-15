@@ -1,6 +1,7 @@
 use crate::fmt;
 use crate::iter::InPlaceIterable;
 use crate::iter::adapters::SourceIter;
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 
@@ -21,7 +22,7 @@ pub struct Scan<I, St, F> {
 }
 
 impl<I, St, F> Scan<I, St, F> {
-    pub(in crate::iter) fn new(iter: I, state: St, f: F) -> Scan<I, St, F> {
+    pub(in crate::iter) const fn new(iter: I, state: St, f: F) -> Scan<I, St, F> {
         Scan { iter, state, f }
     }
 }
@@ -34,10 +35,13 @@ impl<I: fmt::Debug, St: fmt::Debug, F> fmt::Debug for Scan<I, St, F> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<B, I, St, F> Iterator for Scan<I, St, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<B, I, St, F> const Iterator for Scan<I, St, F>
 where
-    I: Iterator,
-    F: FnMut(&mut St, I::Item) -> Option<B>,
+    I: [const] Iterator,
+    I::Item: [const] Destruct,
+    F: [const] FnMut(&mut St, I::Item) -> Option<B>,
+    B: [const] Destruct,
 {
     type Item = B;
 
@@ -58,13 +62,13 @@ where
     where
         Self: Sized,
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
-        fn scan<'a, T, St, B, Acc, R: Try<Output = Acc>>(
+        const fn scan<'a, T, St, B, Acc, R: Try<Output = Acc>>(
             state: &'a mut St,
             f: &'a mut impl FnMut(&mut St, T) -> Option<B>,
             mut fold: impl FnMut(Acc, B) -> R + 'a,
-        ) -> impl FnMut(Acc, T) -> ControlFlow<R, Acc> + 'a {
+        ) -> impl [const] FnMut(Acc, T) -> ControlFlow<R, Acc> + 'a + [const] Destruct {
             move |acc, x| match f(state, x) {
                 None => ControlFlow::Break(try { acc }),
                 Some(x) => ControlFlow::from_try(fold(acc, x)),

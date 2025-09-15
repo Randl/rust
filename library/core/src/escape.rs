@@ -236,17 +236,20 @@ impl<const N: usize, ESCAPING> EscapeIterInner<N, ESCAPING> {
     }
 
     #[inline]
-    pub(crate) fn len(&self) -> usize {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn len(&self) -> usize {
         usize::from(self.alive.end - self.alive.start)
     }
 
     #[inline]
-    pub(crate) fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.alive.advance_by(n)
     }
 
     #[inline]
-    pub(crate) fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         self.alive.advance_back_by(n)
     }
 

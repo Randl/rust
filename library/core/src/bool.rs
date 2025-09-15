@@ -1,5 +1,7 @@
 //! impl bool {}
 
+use crate::marker::Destruct;
+
 impl bool {
     /// Returns `Some(t)` if the `bool` is [`true`](../std/keyword.true.html),
     /// or `None` otherwise.
@@ -30,7 +32,8 @@ impl bool {
     /// ```
     #[stable(feature = "bool_to_option", since = "1.62.0")]
     #[inline]
-    pub fn then_some<T>(self, t: T) -> Option<T> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn then_some<T: [const] Destruct>(self, t: T) -> Option<T> {
         if self { Some(t) } else { None }
     }
 
@@ -58,7 +61,8 @@ impl bool {
     #[stable(feature = "lazy_bool_to_option", since = "1.50.0")]
     #[rustc_diagnostic_item = "bool_then"]
     #[inline]
-    pub fn then<T, F: FnOnce() -> T>(self, f: F) -> Option<T> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn then<T, F: [const] FnOnce() -> T + [const] Destruct>(self, f: F) -> Option<T> {
         if self { Some(f()) } else { None }
     }
 
@@ -95,7 +99,8 @@ impl bool {
     /// ```
     #[unstable(feature = "bool_to_result", issue = "142748")]
     #[inline]
-    pub fn ok_or<E>(self, err: E) -> Result<(), E> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn ok_or<E: [const] Destruct>(self, err: E) -> Result<(), E> {
         if self { Ok(()) } else { Err(err) }
     }
 
@@ -125,7 +130,11 @@ impl bool {
     /// ```
     #[unstable(feature = "bool_to_result", issue = "142748")]
     #[inline]
-    pub fn ok_or_else<E, F: FnOnce() -> E>(self, f: F) -> Result<(), E> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn ok_or_else<E, F: [const] FnOnce() -> E + [const] Destruct>(
+        self,
+        f: F,
+    ) -> Result<(), E> {
         if self { Ok(()) } else { Err(f()) }
     }
 }

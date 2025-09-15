@@ -806,8 +806,9 @@ pub const fn swap<T>(x: &mut T, y: &mut T) {
 /// assert_eq!(buffer.buf.len(), 0);
 /// ```
 #[inline]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "mem_take", since = "1.40.0")]
-pub fn take<T: Default>(dest: &mut T) -> T {
+pub const fn take<T: [const] Default>(dest: &mut T) -> T {
     replace(dest, T::default())
 }
 

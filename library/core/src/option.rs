@@ -1434,7 +1434,8 @@ impl<T> Option<T> {
     /// ```
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn iter(&self) -> Iter<'_, T> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn iter(&self) -> Iter<'_, T> {
         Iter { inner: Item { opt: self.as_ref() } }
     }
 
@@ -1455,7 +1456,8 @@ impl<T> Option<T> {
     /// ```
     #[inline]
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut { inner: Item { opt: self.as_mut() } }
     }
 
@@ -1750,7 +1752,11 @@ impl<T> Option<T> {
     /// ```
     #[inline]
     #[stable(feature = "option_entry", since = "1.20.0")]
-    pub fn get_or_insert(&mut self, value: T) -> &mut T {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn get_or_insert(&mut self, value: T) -> &mut T
+    where
+        T: [const] Destruct,
+    {
         self.get_or_insert_with(|| value)
     }
 
@@ -2024,7 +2030,11 @@ impl<T, U> Option<(T, U)> {
     /// ```
     #[inline]
     #[stable(feature = "unzip_option", since = "1.66.0")]
-    pub fn unzip(self) -> (Option<T>, Option<U>) {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn unzip(self) -> (Option<T>, Option<U>)
+    where
+        T: [const] Destruct,
+    {
         match self {
             Some((a, b)) => (Some(a), Some(b)),
             None => (None, None),
@@ -2074,9 +2084,10 @@ impl<T> Option<&T> {
     /// ```
     #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(feature = "rust1", since = "1.0.0")]
-    pub fn cloned(self) -> Option<T>
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn cloned(self) -> Option<T>
     where
-        T: Clone,
+        T: [const] Clone,
     {
         match self {
             Some(t) => Some(t.clone()),
@@ -2125,9 +2136,10 @@ impl<T> Option<&mut T> {
     /// ```
     #[must_use = "`self` will be dropped if the result is not used"]
     #[stable(since = "1.26.0", feature = "option_ref_mut_cloned")]
-    pub fn cloned(self) -> Option<T>
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn cloned(self) -> Option<T>
     where
-        T: Clone,
+        T: [const] Clone,
     {
         match self {
             Some(t) => Some(t.clone()),
@@ -2233,7 +2245,8 @@ impl<T> const Default for Option<T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> IntoIterator for Option<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const IntoIterator for Option<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
@@ -2267,7 +2280,8 @@ impl<'a, T> IntoIterator for &'a Option<T> {
 }
 
 #[stable(since = "1.4.0", feature = "option_iter")]
-impl<'a, T> IntoIterator for &'a mut Option<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const IntoIterator for &'a mut Option<T> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -2400,12 +2414,15 @@ impl<T: [const] Ord> const Ord for Option<T> {
 // The Option Iterators
 /////////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+#[derive_const(Clone)]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 struct Item<A> {
     opt: Option<A>,
 }
 
-impl<A> Iterator for Item<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A> const Iterator for Item<A> {
     type Item = A;
 
     #[inline]
@@ -2420,14 +2437,16 @@ impl<A> Iterator for Item<A> {
     }
 }
 
-impl<A> DoubleEndedIterator for Item<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A> const DoubleEndedIterator for Item<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.opt.take()
     }
 }
 
-impl<A> ExactSizeIterator for Item<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A> const ExactSizeIterator for Item<A> {
     #[inline]
     fn len(&self) -> usize {
         self.opt.len()
@@ -2447,8 +2466,9 @@ pub struct Iter<'a, A: 'a> {
     inner: Item<&'a A>,
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, A> Iterator for Iter<'a, A> {
+impl<'a, A> const Iterator for Iter<'a, A> {
     type Item = &'a A;
 
     #[inline]
@@ -2461,16 +2481,18 @@ impl<'a, A> Iterator for Iter<'a, A> {
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, A> DoubleEndedIterator for Iter<'a, A> {
+impl<'a, A> const DoubleEndedIterator for Iter<'a, A> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a A> {
         self.inner.next_back()
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A> ExactSizeIterator for Iter<'_, A> {}
+impl<A> const ExactSizeIterator for Iter<'_, A> {}
 
 #[stable(feature = "fused", since = "1.26.0")]
 impl<A> FusedIterator for Iter<'_, A> {}
@@ -2479,7 +2501,8 @@ impl<A> FusedIterator for Iter<'_, A> {}
 unsafe impl<A> TrustedLen for Iter<'_, A> {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A> Clone for Iter<'_, A> {
+#[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+impl<A: [const] Clone> const Clone for Iter<'_, A> {
     #[inline]
     fn clone(&self) -> Self {
         Iter { inner: self.inner.clone() }
@@ -2497,8 +2520,9 @@ pub struct IterMut<'a, A: 'a> {
     inner: Item<&'a mut A>,
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, A> Iterator for IterMut<'a, A> {
+impl<'a, A> const Iterator for IterMut<'a, A> {
     type Item = &'a mut A;
 
     #[inline]
@@ -2538,8 +2562,9 @@ pub struct IntoIter<A> {
     inner: Item<A>,
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A> Iterator for IntoIter<A> {
+impl<A> const Iterator for IntoIter<A> {
     type Item = A;
 
     #[inline]
@@ -2552,16 +2577,18 @@ impl<A> Iterator for IntoIter<A> {
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A> DoubleEndedIterator for IntoIter<A> {
+impl<A> const DoubleEndedIterator for IntoIter<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.inner.next_back()
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A> ExactSizeIterator for IntoIter<A> {}
+impl<A> const ExactSizeIterator for IntoIter<A> {}
 
 #[stable(feature = "fused", since = "1.26.0")]
 impl<A> FusedIterator for IntoIter<A> {}
@@ -2574,7 +2601,11 @@ unsafe impl<A> TrustedLen for IntoIter<A> {}
 /////////////////////////////////////////////////////////////////////////////
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<A, V: FromIterator<A>> FromIterator<Option<A>> for Option<V> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A, V: [const] FromIterator<A>> const FromIterator<Option<A>> for Option<V>
+where
+    V: [const] Destruct,
+{
     /// Takes each element in the [`Iterator`]: if it is [`None`][Option::None],
     /// no further elements are taken, and the [`None`][Option::None] is
     /// returned. Should no [`None`][Option::None] occur, a container of type
@@ -2636,7 +2667,7 @@ impl<A, V: FromIterator<A>> FromIterator<Option<A>> for Option<V> {
     /// Since the third element caused an underflow, no further elements were taken,
     /// so the final value of `shared` is 6 (= `3 + 2 + 1`), not 16.
     #[inline]
-    fn from_iter<I: IntoIterator<Item = Option<A>>>(iter: I) -> Option<V> {
+    fn from_iter<I: [const] IntoIterator<Item = Option<A>>>(iter: I) -> Option<V> {
         // FIXME(#11084): This could be replaced with Iterator::scan when this
         // performance bug is closed.
 
@@ -2750,7 +2781,8 @@ impl<T, const N: usize> [Option<T>; N] {
     /// ```
     #[inline]
     #[unstable(feature = "option_array_transpose", issue = "130828")]
-    pub fn transpose(self) -> Option<[T; N]> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn transpose(self) -> Option<[T; N]> {
         self.try_map(core::convert::identity)
     }
 }

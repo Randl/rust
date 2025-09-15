@@ -2,6 +2,7 @@
 
 use crate::intrinsics::transmute_unchecked;
 use crate::iter::{FusedIterator, TrustedLen, TrustedRandomAccessNoCoerce};
+use crate::marker::Destruct;
 use crate::mem::{ManuallyDrop, MaybeUninit};
 use crate::num::NonZero;
 use crate::ops::{Deref as _, DerefMut as _, IndexRange, Range, Try};
@@ -23,11 +24,11 @@ pub struct IntoIter<T, const N: usize> {
 
 impl<T, const N: usize> IntoIter<T, N> {
     #[inline]
-    fn unsize(&self) -> &InnerUnsized<T> {
+    const fn unsize(&self) -> &InnerUnsized<T> {
         self.inner.deref()
     }
     #[inline]
-    fn unsize_mut(&mut self) -> &mut InnerUnsized<T> {
+    const fn unsize_mut(&mut self) -> &mut InnerUnsized<T> {
         self.inner.deref_mut()
     }
 }
@@ -36,7 +37,8 @@ impl<T, const N: usize> IntoIter<T, N> {
 // hides this implementation from explicit `.into_iter()` calls on editions < 2021,
 // so those calls will still resolve to the slice implementation, by reference.
 #[stable(feature = "array_into_iter_impl", since = "1.53.0")]
-impl<T, const N: usize> IntoIterator for [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const IntoIterator for [T; N] {
     type Item = T;
     type IntoIter = IntoIter<T, N>;
 
@@ -212,27 +214,31 @@ impl<T, const N: usize> IntoIter<T, N> {
     /// yet.
     #[stable(feature = "array_value_iter", since = "1.51.0")]
     #[inline]
-    pub fn as_slice(&self) -> &[T] {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn as_slice(&self) -> &[T] {
         self.unsize().as_slice()
     }
 
     /// Returns a mutable slice of all elements that have not been yielded yet.
     #[stable(feature = "array_value_iter", since = "1.51.0")]
     #[inline]
-    pub fn as_mut_slice(&mut self) -> &mut [T] {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn as_mut_slice(&mut self) -> &mut [T] {
         self.unsize_mut().as_mut_slice()
     }
 }
 
 #[stable(feature = "array_value_iter_default", since = "1.89.0")]
-impl<T, const N: usize> Default for IntoIter<T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const Default for IntoIter<T, N> {
     fn default() -> Self {
         IntoIter::empty()
     }
 }
 
 #[stable(feature = "array_value_iter_impls", since = "1.40.0")]
-impl<T, const N: usize> Iterator for IntoIter<T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const Iterator for IntoIter<T, N> {
     type Item = T;
 
     #[inline]
@@ -248,7 +254,9 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
     #[inline]
     fn fold<Acc, Fold>(mut self, init: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc,
+        T: [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.unsize_mut().fold(init, fold)
     }
@@ -257,8 +265,8 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
     fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R,
+        R: [const] Try<Output = B>,
     {
         self.unsize_mut().try_fold(init, f)
     }
@@ -289,7 +297,8 @@ impl<T, const N: usize> Iterator for IntoIter<T, N> {
 }
 
 #[stable(feature = "array_value_iter_impls", since = "1.40.0")]
-impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const DoubleEndedIterator for IntoIter<T, N> {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         self.unsize_mut().next_back()
@@ -298,7 +307,8 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
     #[inline]
     fn rfold<Acc, Fold>(mut self, init: Acc, rfold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         self.unsize_mut().rfold(init, rfold)
     }
@@ -307,8 +317,8 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
     fn try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R,
+        R: [const] Try<Output = B>,
     {
         self.unsize_mut().try_rfold(init, f)
     }
@@ -327,7 +337,8 @@ impl<T, const N: usize> DoubleEndedIterator for IntoIter<T, N> {
 //   for !Drop types and ends up as dead code in the final binary.
 //   Branching on needs_drop higher in the call-tree allows it to be
 //   removed by earlier optimization passes.
-impl<T, const N: usize> Drop for IntoIter<T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const Drop for IntoIter<T, N> {
     #[inline]
     fn drop(&mut self) {
         if crate::mem::needs_drop::<T>() {
@@ -338,7 +349,8 @@ impl<T, const N: usize> Drop for IntoIter<T, N> {
 }
 
 #[stable(feature = "array_value_iter_impls", since = "1.40.0")]
-impl<T, const N: usize> ExactSizeIterator for IntoIter<T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const ExactSizeIterator for IntoIter<T, N> {
     #[inline]
     fn len(&self) -> usize {
         self.inner.len()

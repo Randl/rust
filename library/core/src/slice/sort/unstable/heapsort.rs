@@ -7,9 +7,10 @@ use crate::{cmp, intrinsics, ptr};
 /// Never inline this, it sits the main hot-loop in `recurse` and is meant as unlikely algorithmic
 /// fallback.
 #[inline(never)]
-pub(crate) fn heapsort<T, F>(v: &mut [T], is_less: &mut F)
+#[rustc_const_unstable(feature = "const_ops", issue = "143802")]
+pub(crate) const fn heapsort<T, F>(v: &mut [T], is_less: &mut F)
 where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool,
 {
     let len = v.len();
 
@@ -34,9 +35,10 @@ where
 //
 // SAFETY: The caller has to guarantee that `node <= v.len()`.
 #[inline(always)]
-unsafe fn sift_down<T, F>(v: &mut [T], mut node: usize, is_less: &mut F)
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn sift_down<T, F>(v: &mut [T], mut node: usize, is_less: &mut F)
 where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool,
 {
     // SAFETY: See function safety.
     unsafe {

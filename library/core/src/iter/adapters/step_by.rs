@@ -1,5 +1,6 @@
 use crate::intrinsics;
 use crate::iter::{TrustedLen, TrustedRandomAccess, from_fn};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{Range, Try};
 
@@ -18,7 +19,7 @@ pub struct StepBy<I> {
     /// in the constructor.
     /// For most iterators that processing is a no-op, but for Range<{integer}> types it is lossy
     /// which means the inner iterator cannot be returned to user code.
-    /// Additionally this type-dependent preprocessing means specialized implementations
+    /// Additionally, this type-dependent preprocessing means specialized implementations
     /// cannot be used interchangeably.
     iter: I,
     /// This field is `step - 1`, aka the correct amount to pass to `nth` when iterating.
@@ -31,7 +32,8 @@ pub struct StepBy<I> {
 
 impl<I> StepBy<I> {
     #[inline]
-    pub(in crate::iter) fn new(iter: I, step: usize) -> StepBy<I> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, step: usize) -> StepBy<I> {
         assert!(step != 0);
         let iter = <I as SpecRangeSetup<I>>::setup(iter, step);
         StepBy { iter, step_minus_one: step - 1, first_take: true }
@@ -40,7 +42,7 @@ impl<I> StepBy<I> {
     /// The `step` that was originally passed to `Iterator::step_by(step)`,
     /// aka `self.step_minus_one + 1`.
     #[inline]
-    fn original_step(&self) -> NonZero<usize> {
+    const fn original_step(&self) -> NonZero<usize> {
         // SAFETY: By type invariant, `step_minus_one` cannot be `MAX`, which
         // means the addition cannot overflow and the result cannot be zero.
         unsafe { NonZero::new_unchecked(intrinsics::unchecked_add(self.step_minus_one, 1)) }
@@ -48,9 +50,11 @@ impl<I> StepBy<I> {
 }
 
 #[stable(feature = "iterator_step_by", since = "1.28.0")]
-impl<I> Iterator for StepBy<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const Iterator for StepBy<I>
 where
-    I: Iterator,
+    I: [const] Iterator,
+    I::Item: [const] Destruct,
 {
     type Item = I::Item;
 
@@ -71,8 +75,8 @@ where
 
     fn try_fold<Acc, F, R>(&mut self, acc: Acc, f: F) -> R
     where
-        F: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        F: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         self.spec_try_fold(acc, f)
     }
@@ -80,7 +84,8 @@ where
     #[inline]
     fn fold<Acc, F>(self, acc: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.spec_fold(acc, f)
     }
@@ -92,16 +97,22 @@ where
 {
     // The zero-based index starting from the end of the iterator of the
     // last element. Used in the `DoubleEndedIterator` implementation.
-    fn next_back_index(&self) -> usize {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn next_back_index(&self) -> usize
+    where
+        I: [const] ExactSizeIterator,
+    {
         let rem = self.iter.len() % self.original_step();
         if self.first_take { if rem == 0 { self.step_minus_one } else { rem - 1 } } else { rem }
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "double_ended_step_by_iterator", since = "1.38.0")]
-impl<I> DoubleEndedIterator for StepBy<I>
+impl<I> const DoubleEndedIterator for StepBy<I>
 where
-    I: DoubleEndedIterator + ExactSizeIterator,
+    I: [const] DoubleEndedIterator + [const] ExactSizeIterator,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -115,8 +126,8 @@ where
 
     fn try_rfold<Acc, F, R>(&mut self, init: Acc, f: F) -> R
     where
-        F: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        F: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         self.spec_try_rfold(init, f)
     }
@@ -125,7 +136,8 @@ where
     fn rfold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
         Self: Sized,
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.spec_rfold(init, f)
     }
@@ -133,7 +145,13 @@ where
 
 // StepBy can only make the iterator shorter, so the len will still fit.
 #[stable(feature = "iterator_step_by", since = "1.28.0")]
-impl<I> ExactSizeIterator for StepBy<I> where I: ExactSizeIterator {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const ExactSizeIterator for StepBy<I>
+where
+    I: [const] ExactSizeIterator,
+    I::Item: [const] Destruct,
+{
+}
 
 // SAFETY: This adapter is shortening. TrustedLen requires the upper bound to be calculated correctly.
 // These requirements can only be satisfied when the upper bound of the inner iterator's upper
@@ -143,11 +161,14 @@ impl<I> ExactSizeIterator for StepBy<I> where I: ExactSizeIterator {}
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<I> TrustedLen for StepBy<I> where I: Iterator + TrustedRandomAccess {}
 
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 trait SpecRangeSetup<T> {
     fn setup(inner: T, step: usize) -> T;
 }
 
-impl<T> SpecRangeSetup<T> for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const SpecRangeSetup<T> for T {
     #[inline]
     default fn setup(inner: T, _step: usize) -> T {
         inner
@@ -164,6 +185,7 @@ impl<T> SpecRangeSetup<T> for T {
 /// For correctness *all* public StepBy methods must be specialized
 /// because `setup` drastically alters the meaning of the struct fields so that mixing
 /// different implementations would lead to incorrect results.
+#[const_trait]
 unsafe trait StepByImpl<I> {
     type Item;
 
@@ -175,12 +197,13 @@ unsafe trait StepByImpl<I> {
 
     fn spec_try_fold<Acc, F, R>(&mut self, acc: Acc, f: F) -> R
     where
-        F: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>;
+        F: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>;
 
     fn spec_fold<Acc, F>(self, acc: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc;
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct;
 }
 
 /// Specialization trait for double-ended iteration.
@@ -193,6 +216,7 @@ unsafe trait StepByImpl<I> {
 /// where applicable. I.e. if `StepBy` does support backwards iteration
 /// for a given iterator and that is specialized for forward iteration then
 /// it must also be specialized for backwards iteration.
+#[const_trait]
 unsafe trait StepByBackImpl<I> {
     type Item;
 
@@ -207,16 +231,21 @@ unsafe trait StepByBackImpl<I> {
     fn spec_try_rfold<Acc, F, R>(&mut self, init: Acc, f: F) -> R
     where
         I: DoubleEndedIterator + ExactSizeIterator,
-        F: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>;
+        F: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>;
 
     fn spec_rfold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
         I: DoubleEndedIterator + ExactSizeIterator,
-        F: FnMut(Acc, Self::Item) -> Acc;
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct;
 }
 
-unsafe impl<I: Iterator> StepByImpl<I> for StepBy<I> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I: [const] Iterator> const StepByImpl<I> for StepBy<I>
+where
+    I::Item: [const] Destruct,
+{
     type Item = I::Item;
 
     #[inline]
@@ -229,12 +258,14 @@ unsafe impl<I: Iterator> StepByImpl<I> for StepBy<I> {
     #[inline]
     default fn spec_size_hint(&self) -> (usize, Option<usize>) {
         #[inline]
-        fn first_size(step: NonZero<usize>) -> impl Fn(usize) -> usize {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn first_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize {
             move |n| if n == 0 { 0 } else { 1 + (n - 1) / step }
         }
 
         #[inline]
-        fn other_size(step: NonZero<usize>) -> impl Fn(usize) -> usize {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn other_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize {
             move |n| n / step
         }
 
@@ -295,11 +326,11 @@ unsafe impl<I: Iterator> StepByImpl<I> for StepBy<I> {
 
     default fn spec_try_fold<Acc, F, R>(&mut self, mut acc: Acc, mut f: F) -> R
     where
-        F: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        F: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn nth<I: Iterator>(
+        const fn nth<I: Iterator>(
             iter: &mut I,
             step_minus_one: usize,
         ) -> impl FnMut() -> Option<I::Item> + '_ {
@@ -318,13 +349,14 @@ unsafe impl<I: Iterator> StepByImpl<I> for StepBy<I> {
 
     default fn spec_fold<Acc, F>(mut self, mut acc: Acc, mut f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         #[inline]
-        fn nth<I: Iterator>(
+        const fn nth<I: Iterator>(
             iter: &mut I,
             step_minus_one: usize,
-        ) -> impl FnMut() -> Option<I::Item> + '_ {
+        ) -> impl [const] FnMut() -> Option<I::Item> + '_ + [const] Destruct {
             move || iter.nth(step_minus_one)
         }
 
@@ -339,7 +371,12 @@ unsafe impl<I: Iterator> StepByImpl<I> for StepBy<I> {
     }
 }
 
-unsafe impl<I: DoubleEndedIterator + ExactSizeIterator> StepByBackImpl<I> for StepBy<I> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I: [const] DoubleEndedIterator + [const] ExactSizeIterator> const StepByBackImpl<I>
+    for StepBy<I>
+where
+    I::Item: [const] Destruct,
+{
     type Item = I::Item;
 
     #[inline]
@@ -359,8 +396,8 @@ unsafe impl<I: DoubleEndedIterator + ExactSizeIterator> StepByBackImpl<I> for St
 
     default fn spec_try_rfold<Acc, F, R>(&mut self, init: Acc, mut f: F) -> R
     where
-        F: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        F: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
         fn nth_back<I: DoubleEndedIterator>(
@@ -383,13 +420,14 @@ unsafe impl<I: DoubleEndedIterator + ExactSizeIterator> StepByBackImpl<I> for St
     default fn spec_rfold<Acc, F>(mut self, init: Acc, mut f: F) -> Acc
     where
         Self: Sized,
-        F: FnMut(Acc, I::Item) -> Acc,
+        F: [const] FnMut(Acc, I::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         #[inline]
-        fn nth_back<I: DoubleEndedIterator>(
+        const fn nth_back<I: DoubleEndedIterator>(
             iter: &mut I,
             step_minus_one: usize,
-        ) -> impl FnMut() -> Option<I::Item> + '_ {
+        ) -> impl [const] FnMut() -> Option<I::Item> + '_ + [const] Destruct {
             move || iter.nth_back(step_minus_one)
         }
 
@@ -423,7 +461,8 @@ macro_rules! spec_int_ranges {
 
         const _: () = assert!(usize::BITS >= <$t>::BITS);
 
-        impl SpecRangeSetup<Range<$t>> for Range<$t> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl const SpecRangeSetup<Range<$t>> for Range<$t> {
             #[inline]
             fn setup(mut r: Range<$t>, step: usize) -> Range<$t> {
                 let inner_len = r.size_hint().0;
@@ -436,7 +475,8 @@ macro_rules! spec_int_ranges {
             }
         }
 
-        unsafe impl StepByImpl<Range<$t>> for StepBy<Range<$t>> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe impl const StepByImpl<Range<$t>> for StepBy<Range<$t>> {
             #[inline]
             fn spec_next(&mut self) -> Option<$t> {
                 // if a step size larger than the type has been specified fall back to
@@ -473,8 +513,8 @@ macro_rules! spec_int_ranges {
             #[inline]
             fn spec_try_fold<Acc, F, R>(&mut self, init: Acc, mut f: F) -> R
                 where
-                    F: FnMut(Acc, Self::Item) -> R,
-                    R: Try<Output = Acc>
+                    F: ~const  FnMut(Acc, Self::Item) -> R + ~const Destruct,
+                    R: ~const Try<Output = Acc>
             {
                 let mut accum = init;
                 while let Some(x) = self.next() {
@@ -486,7 +526,7 @@ macro_rules! spec_int_ranges {
             #[inline]
             fn spec_fold<Acc, F>(self, init: Acc, mut f: F) -> Acc
                 where
-                    F: FnMut(Acc, Self::Item) -> Acc
+                    F: ~const FnMut(Acc, Self::Item) -> Acc + ~const Destruct
             {
                 // if a step size larger than the type has been specified fall back to
                 // t::MAX, in which case remaining will be at most 1.
@@ -510,7 +550,8 @@ macro_rules! spec_int_ranges_r {
     ($($t:ty)*) => ($(
         const _: () = assert!(usize::BITS >= <$t>::BITS);
 
-        unsafe impl StepByBackImpl<Range<$t>> for StepBy<Range<$t>> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe impl const StepByBackImpl<Range<$t>> for StepBy<Range<$t>> {
 
             #[inline]
             fn spec_next_back(&mut self) -> Option<Self::Item> {
@@ -539,8 +580,8 @@ macro_rules! spec_int_ranges_r {
             #[inline]
             fn spec_try_rfold<Acc, F, R>(&mut self, init: Acc, mut f: F) -> R
             where
-                F: FnMut(Acc, Self::Item) -> R,
-                R: Try<Output = Acc>
+                F: ~const FnMut(Acc, Self::Item) -> R + ~const Destruct,
+                R: ~const Try<Output = Acc>
             {
                 let mut accum = init;
                 while let Some(x) = self.next_back() {
@@ -552,7 +593,7 @@ macro_rules! spec_int_ranges_r {
             #[inline]
             fn spec_rfold<Acc, F>(mut self, init: Acc, mut f: F) -> Acc
             where
-                F: FnMut(Acc, Self::Item) -> Acc
+                F: ~const FnMut(Acc, Self::Item) -> Acc + ~const Destruct,
             {
                 let mut accum = init;
                 while let Some(x) = self.next_back() {

@@ -150,7 +150,8 @@ impl<T: PointeeSized> *const T {
     #[must_use]
     #[inline(always)]
     #[stable(feature = "strict_provenance", since = "1.84.0")]
-    pub fn addr(self) -> usize {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn addr(self) -> usize {
         // A pointer-to-integer transmute currently has exactly the right semantics: it returns the
         // address without exposing the provenance. Note that this is *not* a stable guarantee about
         // transmute semantics, it relies on sysroot crates having special status.
@@ -1184,7 +1185,8 @@ impl<T: PointeeSized> *const T {
     #[stable(feature = "pointer_methods", since = "1.26.0")]
     #[inline]
     #[track_caller]
-    pub unsafe fn read_volatile(self) -> T
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn read_volatile(self) -> T
     where
         T: Sized,
     {
@@ -1291,7 +1293,8 @@ impl<T: PointeeSized> *const T {
     #[must_use]
     #[inline]
     #[stable(feature = "align_offset", since = "1.36.0")]
-    pub fn align_offset(self, align: usize) -> usize
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn align_offset(self, align: usize) -> usize
     where
         T: Sized,
     {
@@ -1566,7 +1569,8 @@ impl<T, const N: usize> *const [T; N] {
 
 /// Pointer equality is by address, as produced by the [`<*const T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> PartialEq for *const T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143802")]
+impl<T: PointeeSized> const PartialEq for *const T {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn eq(&self, other: &*const T) -> bool {
@@ -1576,11 +1580,13 @@ impl<T: PointeeSized> PartialEq for *const T {
 
 /// Pointer equality is an equivalence relation.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> Eq for *const T {}
+#[rustc_const_unstable(feature = "const_cmp", issue = "143802")]
+impl<T: PointeeSized> const Eq for *const T {}
 
 /// Pointer comparison is by address, as produced by the `[`<*const T>::addr`](pointer::addr)` method.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> Ord for *const T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143802")]
+impl<T: PointeeSized> const Ord for *const T {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn cmp(&self, other: &*const T) -> Ordering {
@@ -1596,7 +1602,8 @@ impl<T: PointeeSized> Ord for *const T {
 
 /// Pointer comparison is by address, as produced by the `[`<*const T>::addr`](pointer::addr)` method.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> PartialOrd for *const T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143802")]
+impl<T: PointeeSized> const PartialOrd for *const T {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn partial_cmp(&self, other: &*const T) -> Option<Ordering> {
@@ -1629,7 +1636,8 @@ impl<T: PointeeSized> PartialOrd for *const T {
 }
 
 #[stable(feature = "raw_ptr_default", since = "1.88.0")]
-impl<T: ?Sized + Thin> Default for *const T {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143802")]
+impl<T: ?Sized + Thin> const Default for *const T {
     /// Returns the default value of [`null()`][crate::ptr::null].
     fn default() -> Self {
         crate::ptr::null()

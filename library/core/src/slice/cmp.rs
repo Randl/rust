@@ -4,6 +4,7 @@ use super::{from_raw_parts, memchr};
 use crate::ascii;
 use crate::cmp::{self, BytewiseEq, Ordering};
 use crate::intrinsics::compare_bytes;
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::ControlFlow;
 
@@ -28,7 +29,8 @@ impl<T: [const] Eq> const Eq for [T] {}
 
 /// Implements comparison of slices [lexicographically](Ord#lexicographical-comparison).
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: Ord> Ord for [T] {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<T: [const] Ord> const Ord for [T] {
     fn cmp(&self, other: &[T]) -> Ordering {
         SliceOrd::compare(self, other)
     }
@@ -47,7 +49,8 @@ const fn as_underlying(x: ControlFlow<bool>) -> u8 {
 
 /// Implements comparison of slices [lexicographically](Ord#lexicographical-comparison).
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PartialOrd> PartialOrd for [T] {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<T: [const] PartialOrd> const PartialOrd for [T] {
     #[inline]
     fn partial_cmp(&self, other: &[T]) -> Option<Ordering> {
         SlicePartialOrd::partial_compare(self, other)
@@ -175,7 +178,8 @@ trait SliceChain: Sized {
 
 type AlwaysBreak<B> = ControlFlow<B, crate::convert::Infallible>;
 
-impl<A: PartialOrd> SlicePartialOrd for A {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<A: [const] PartialOrd> const SlicePartialOrd for A {
     default fn partial_compare(left: &[A], right: &[A]) -> Option<Ordering> {
         let elem_chain = |a, b| match PartialOrd::partial_cmp(a, b) {
             Some(Ordering::Equal) => ControlFlow::Continue(()),
@@ -187,7 +191,8 @@ impl<A: PartialOrd> SlicePartialOrd for A {
     }
 }
 
-impl<A: PartialOrd> SliceChain for A {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<A: [const] PartialOrd> const SliceChain for A {
     default fn chaining_lt(left: &[Self], right: &[Self]) -> ControlFlow<bool> {
         chaining_impl(left, right, PartialOrd::__chaining_lt, usize::__chaining_lt)
     }
@@ -203,12 +208,17 @@ impl<A: PartialOrd> SliceChain for A {
 }
 
 #[inline]
-fn chaining_impl<'l, 'r, A: PartialOrd, B, C>(
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+const fn chaining_impl<'l, 'r, A: PartialOrd, B, C, FE, FL>(
     left: &'l [A],
     right: &'r [A],
-    elem_chain: impl Fn(&'l A, &'r A) -> ControlFlow<B>,
-    len_chain: impl for<'a> FnOnce(&'a usize, &'a usize) -> ControlFlow<B, C>,
-) -> ControlFlow<B, C> {
+    elem_chain: FE,
+    len_chain: FL,
+) -> ControlFlow<B, C>
+where
+    FE: [const] Fn(&'l A, &'r A) -> ControlFlow<B> + [const] Destruct,
+    FL: for<'a> [const] Fn(&'a usize, &'a usize) -> ControlFlow<B, C> + [const] Destruct,
+{
     let l = cmp::min(left.len(), right.len());
 
     // Slice to the loop iteration range to enable bound check
@@ -216,8 +226,11 @@ fn chaining_impl<'l, 'r, A: PartialOrd, B, C>(
     let lhs = &left[..l];
     let rhs = &right[..l];
 
-    for i in 0..l {
+    // FIXME(const_hack): make this a `for i in 0..l` loop.
+    let mut i = 0;
+    while i < l {
         elem_chain(&lhs[i], &rhs[i])?;
+        i += 1;
     }
 
     len_chain(&left.len(), &right.len())
@@ -272,7 +285,8 @@ trait SliceOrd: Sized {
     fn compare(left: &[Self], right: &[Self]) -> Ordering;
 }
 
-impl<A: Ord> SliceOrd for A {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Ord> const SliceOrd for A {
     default fn compare(left: &[Self], right: &[Self]) -> Ordering {
         let elem_chain = |a, b| match Ord::cmp(a, b) {
             Ordering::Equal => ControlFlow::Continue(()),
@@ -367,11 +381,14 @@ impl<A: [const] PartialOrd + [const] UnsignedBytewiseOrd> const SliceChain for A
     }
 }
 
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub(super) trait SliceContains: Sized {
     fn slice_contains(&self, x: &[Self]) -> bool;
 }
 
-impl<T> SliceContains for T
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const SliceContains for T
 where
     T: PartialEq,
 {
@@ -379,15 +396,15 @@ where
         x.iter().any(|y| *y == *self)
     }
 }
-
-impl SliceContains for u8 {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const SliceContains for u8 {
     #[inline]
     fn slice_contains(&self, x: &[Self]) -> bool {
         memchr::memchr(*self, x).is_some()
     }
 }
-
-impl SliceContains for i8 {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const SliceContains for i8 {
     #[inline]
     fn slice_contains(&self, x: &[Self]) -> bool {
         let byte = *self as u8;
@@ -403,7 +420,8 @@ impl SliceContains for i8 {
 macro_rules! impl_slice_contains {
     ($($t:ty),*) => {
         $(
-            impl SliceContains for $t {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+            impl const SliceContains for $t {
                 #[inline]
                 fn slice_contains(&self, arr: &[$t]) -> bool {
                     // Make our LANE_COUNT 4x the normal lane count (aiming for 128 bit vectors).

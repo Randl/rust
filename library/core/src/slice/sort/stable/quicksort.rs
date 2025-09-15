@@ -1,5 +1,6 @@
 //! This module contains a stable quicksort and partition implementation.
 
+use crate::marker::Destruct;
 use crate::mem::{ManuallyDrop, MaybeUninit};
 use crate::slice::sort::shared::FreezeMarker;
 use crate::slice::sort::shared::pivot::choose_pivot;
@@ -13,7 +14,8 @@ use crate::{intrinsics, ptr};
 /// `limit` when initialized with `c*log(v.len())` for some c ensures we do not
 /// overflow the stack or go quadratic.
 #[inline(never)]
-pub fn quicksort<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn quicksort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     mut v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     mut limit: u32,
@@ -83,7 +85,9 @@ pub fn quicksort<T, F: FnMut(&T, &T) -> bool>(
 ///
 /// If `is_less` is not a strict total order or panics, `scratch.len() < v.len()`,
 /// or `pivot_pos >= v.len()`, the result and `v`'s state is sound but unspecified.
-fn stable_partition<T, F: FnMut(&T, &T) -> bool>(
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn stable_partition<T, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     pivot_pos: usize,
@@ -195,7 +199,7 @@ impl<T> PartitionState<T> {
     ///
     /// `scan` and `scratch` must point to valid disjoint buffers of length `len`. The
     /// scan buffer must be initialized.
-    unsafe fn new(scan: *const T, scratch: *mut T, len: usize) -> Self {
+    const unsafe fn new(scan: *const T, scratch: *mut T, len: usize) -> Self {
         // SAFETY: See function safety comment.
         unsafe { Self { scratch_base: scratch, scan, num_left: 0, scratch_rev: scratch.add(len) } }
     }
@@ -209,7 +213,7 @@ impl<T> PartitionState<T> {
     /// This function may be called at most `len` times. If it is called exactly
     /// `len` times the scratch buffer then contains a copy of each element from
     /// the scan buffer exactly once - a permutation, and num_left <= len.
-    unsafe fn partition_one(&mut self, towards_left: bool) -> *mut T {
+    const unsafe fn partition_one(&mut self, towards_left: bool) -> *mut T {
         // SAFETY: see individual comments.
         unsafe {
             // SAFETY: in-bounds because this function is called at most len times, and thus
@@ -231,23 +235,28 @@ impl<T> PartitionState<T> {
     }
 }
 
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 trait IsFreeze {
     fn is_freeze() -> bool;
 }
 
-impl<T> IsFreeze for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const IsFreeze for T {
     default fn is_freeze() -> bool {
         false
     }
 }
-impl<T: FreezeMarker> IsFreeze for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: FreezeMarker> const IsFreeze for T {
     fn is_freeze() -> bool {
         true
     }
 }
 
 #[must_use]
-fn has_direct_interior_mutability<T>() -> bool {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn has_direct_interior_mutability<T>() -> bool {
     // If a type has interior mutability it may alter itself during comparison
     // in a way that must be preserved after the sort operation concludes.
     // Otherwise a type like Mutex<Option<Box<str>>> could lead to double free.

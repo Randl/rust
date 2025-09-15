@@ -183,6 +183,8 @@ mod sip;
 /// [impl]: ../../std/primitive.str.html#impl-Hash-for-str
 #[stable(feature = "rust1", since = "1.0.0")]
 #[rustc_diagnostic_item = "Hash"]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_hash", issue = "none")]
 pub trait Hash: marker::PointeeSized {
     /// Feeds this value into the given [`Hasher`].
     ///
@@ -196,7 +198,7 @@ pub trait Hash: marker::PointeeSized {
     /// println!("Hash is {:x}!", hasher.finish());
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn hash<H: Hasher>(&self, state: &mut H);
+    fn hash<H: [const] Hasher>(&self, state: &mut H);
 
     /// Feeds a slice of this type into the given [`Hasher`].
     ///
@@ -232,7 +234,7 @@ pub trait Hash: marker::PointeeSized {
     /// [`hash`]: Hash::hash
     /// [`hash_slice`]: Hash::hash_slice
     #[stable(feature = "hash_slice", since = "1.3.0")]
-    fn hash_slice<H: Hasher>(data: &[Self], state: &mut H)
+    fn hash_slice<H: [const] Hasher>(data: &[Self], state: &mut H)
     where
         Self: Sized,
     {
@@ -310,6 +312,8 @@ pub use macros::Hash;
 /// [`write_u8`]: Hasher::write_u8
 /// [`write_u32`]: Hasher::write_u32
 #[stable(feature = "rust1", since = "1.0.0")]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_hash", issue = "none")]
 pub trait Hasher {
     /// Returns the hash value for the values written so far.
     ///
@@ -806,14 +810,15 @@ mod impls {
     macro_rules! impl_write {
         ($(($ty:ident, $meth:ident),)*) => {$(
             #[stable(feature = "rust1", since = "1.0.0")]
-            impl Hash for $ty {
+            #[rustc_const_unstable(feature = "const_hash", issue = "none")]
+            impl const Hash for $ty {
                 #[inline]
-                fn hash<H: Hasher>(&self, state: &mut H) {
+                fn hash<H: [const] Hasher>(&self, state: &mut H) {
                     state.$meth(*self)
                 }
 
                 #[inline]
-                fn hash_slice<H: Hasher>(data: &[$ty], state: &mut H) {
+                fn hash_slice<H: [const] Hasher>(data: &[$ty], state: &mut H) {
                     let newlen = size_of_val(data);
                     let ptr = data.as_ptr() as *const u8;
                     // SAFETY: `ptr` is valid and aligned, as this macro is only used

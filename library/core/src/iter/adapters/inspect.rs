@@ -1,6 +1,7 @@
 use crate::fmt;
 use crate::iter::adapters::SourceIter;
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -20,7 +21,7 @@ pub struct Inspect<I, F> {
     f: F,
 }
 impl<I, F> Inspect<I, F> {
-    pub(in crate::iter) fn new(iter: I, f: F) -> Inspect<I, F> {
+    pub(in crate::iter) const fn new(iter: I, f: F) -> Inspect<I, F> {
         Inspect { iter, f }
     }
 }
@@ -37,7 +38,11 @@ where
     F: FnMut(&I::Item),
 {
     #[inline]
-    fn do_inspect(&mut self, elt: Option<I::Item>) -> Option<I::Item> {
+    #[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+    const fn do_inspect(&mut self, elt: Option<I::Item>) -> Option<I::Item>
+    where
+        F: [const] FnMut(&I::Item),
+    {
         if let Some(ref a) = elt {
             (self.f)(a);
         }
@@ -46,20 +51,20 @@ where
     }
 }
 
-fn inspect_fold<T, Acc>(
+const fn inspect_fold<T, Acc>(
     mut f: impl FnMut(&T),
     mut fold: impl FnMut(Acc, T) -> Acc,
-) -> impl FnMut(Acc, T) -> Acc {
+) -> impl [const] FnMut(Acc, T) -> Acc + [const] Destruct {
     move |acc, item| {
         f(&item);
         fold(acc, item)
     }
 }
 
-fn inspect_try_fold<'a, T, Acc, R>(
+const fn inspect_try_fold<'a, T, Acc, R>(
     f: &'a mut impl FnMut(&T),
     mut fold: impl FnMut(Acc, T) -> R + 'a,
-) -> impl FnMut(Acc, T) -> R + 'a {
+) -> impl [const] FnMut(Acc, T) -> R + 'a + [const] Destruct {
     move |acc, item| {
         f(&item);
         fold(acc, item)
@@ -67,9 +72,11 @@ fn inspect_try_fold<'a, T, Acc, R>(
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I: Iterator, F> Iterator for Inspect<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I: [const] Iterator + [const] Destruct, F> const Iterator for Inspect<I, F>
 where
-    F: FnMut(&I::Item),
+    I::Item: [const] Destruct,
+    F: [const] FnMut(&I::Item),
 {
     type Item = I::Item;
 
@@ -88,8 +95,8 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_fold(init, inspect_try_fold(&mut self.f, fold))
     }
@@ -97,7 +104,8 @@ where
     #[inline]
     fn fold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.iter.fold(init, inspect_fold(self.f, fold))
     }

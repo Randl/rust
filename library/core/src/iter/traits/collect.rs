@@ -1,4 +1,5 @@
 use super::TrustedLen;
+use crate::marker::Destruct;
 
 /// Conversion from an [`Iterator`].
 ///
@@ -131,6 +132,8 @@ use super::TrustedLen;
     label = "value of type `{Self}` cannot be built from `std::iter::Iterator<Item={A}>`"
 )]
 #[rustc_diagnostic_item = "FromIterator"]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub trait FromIterator<A>: Sized {
     /// Creates a value from an iterator.
     ///
@@ -149,7 +152,7 @@ pub trait FromIterator<A>: Sized {
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
     #[rustc_diagnostic_item = "from_iter_fn"]
-    fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> Self;
+    fn from_iter<T: [const] IntoIterator<Item = A> + [const] Destruct>(iter: T) -> Self;
 }
 
 /// Conversion into an [`Iterator`].
@@ -279,6 +282,8 @@ pub trait FromIterator<A>: Sized {
 )]
 #[rustc_skip_during_method_dispatch(array, boxed_slice)]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub trait IntoIterator {
     /// The type of the elements being iterated over.
     #[stable(feature = "rust1", since = "1.0.0")]
@@ -286,7 +291,7 @@ pub trait IntoIterator {
 
     /// Which kind of iterator are we turning this into?
     #[stable(feature = "rust1", since = "1.0.0")]
-    type IntoIter: Iterator<Item = Self::Item>;
+    type IntoIter: [const] Iterator<Item = Self::Item>;
 
     /// Creates an iterator from a value.
     ///
@@ -311,7 +316,8 @@ pub trait IntoIterator {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I: Iterator> IntoIterator for I {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I: [const] Iterator + [const] Destruct> const IntoIterator for I {
     type Item = I::Item;
     type IntoIter = I;
 
@@ -391,6 +397,8 @@ impl<I: Iterator> IntoIterator for I {
 /// assert_eq!("MyCollection([5, 6, 7, 1, 2, 3])", format!("{c:?}"));
 /// ```
 #[stable(feature = "rust1", since = "1.0.0")]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub trait Extend<A> {
     /// Extends a collection with the contents of an iterator.
     ///
@@ -410,11 +418,14 @@ pub trait Extend<A> {
     /// assert_eq!("abcdef", &message);
     /// ```
     #[stable(feature = "rust1", since = "1.0.0")]
-    fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T);
+    fn extend<T: [const] IntoIterator<Item = A> + [const] Destruct>(&mut self, iter: T);
 
     /// Extends a collection with exactly one element.
     #[unstable(feature = "extend_one", issue = "72631")]
-    fn extend_one(&mut self, item: A) {
+    fn extend_one(&mut self, item: A)
+    where
+        A: [const] Destruct,
+    {
         self.extend(Some(item));
     }
 
@@ -442,14 +453,16 @@ pub trait Extend<A> {
     unsafe fn extend_one_unchecked(&mut self, item: A)
     where
         Self: Sized,
+        A: [const] Destruct,
     {
         self.extend_one(item);
     }
 }
 
 #[stable(feature = "extend_for_unit", since = "1.28.0")]
-impl Extend<()> for () {
-    fn extend<T: IntoIterator<Item = ()>>(&mut self, iter: T) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const Extend<()> for () {
+    fn extend<T: [const] IntoIterator<Item = ()> + [const] Destruct>(&mut self, iter: T) {
         iter.into_iter().for_each(drop)
     }
     fn extend_one(&mut self, _item: ()) {}
@@ -524,11 +537,11 @@ where
 /// ```
 #[doc(fake_variadic)] // the other implementations are below.
 #[stable(feature = "from_iterator_for_tuple", since = "1.79.0")]
-impl<T, ExtendT> FromIterator<(T,)> for (ExtendT,)
+impl<T, ExtendT> const FromIterator<(T,)> for (ExtendT,)
 where
     ExtendT: Default + Extend<T>,
 {
-    fn from_iter<Iter: IntoIterator<Item = (T,)>>(iter: Iter) -> Self {
+    fn from_iter<Iter: [const] IntoIterator<Item = (T,)>>(iter: Iter) -> Self {
         let mut res = ExtendT::default();
         res.extend(iter.into_iter().map(|t| t.0));
         (res,)

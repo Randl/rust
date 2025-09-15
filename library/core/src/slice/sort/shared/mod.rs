@@ -8,16 +8,20 @@ pub(crate) mod smallsort;
 /// SAFETY: this is safety relevant, how does this interact with the soundness holes in
 /// specialization?
 #[rustc_unsafe_specialization_marker]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub(crate) trait FreezeMarker {}
 
-impl<T: Freeze> FreezeMarker for T {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Freeze> const FreezeMarker for T {}
 
 /// Finds a run of sorted elements starting at the beginning of the slice.
 ///
 /// Returns the length of the run, and a bool that is false when the run
 /// is ascending, and true if the run strictly descending.
 #[inline(always)]
-pub(crate) fn find_existing_run<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const fn find_existing_run<T, F: [const] FnMut(&T, &T) -> bool>(
     v: &[T],
     is_less: &mut F,
 ) -> (usize, bool) {

@@ -1,6 +1,7 @@
 use crate::fmt;
 use crate::iter::InPlaceIterable;
 use crate::iter::adapters::SourceIter;
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 
@@ -20,7 +21,7 @@ pub struct MapWhile<I, P> {
 }
 
 impl<I, P> MapWhile<I, P> {
-    pub(in crate::iter) fn new(iter: I, predicate: P) -> MapWhile<I, P> {
+    pub(in crate::iter) const fn new(iter: I, predicate: P) -> MapWhile<I, P> {
         MapWhile { iter, predicate }
     }
 }
@@ -32,10 +33,13 @@ impl<I: fmt::Debug, P> fmt::Debug for MapWhile<I, P> {
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "iter_map_while", since = "1.57.0")]
-impl<B, I: Iterator, P> Iterator for MapWhile<I, P>
+impl<B, I: [const] Iterator, P> const Iterator for MapWhile<I, P>
 where
-    P: FnMut(I::Item) -> Option<B>,
+    P: [const] FnMut(I::Item) -> Option<B>,
+    I::Item: [const] Destruct,
+    B: [const] Destruct,
 {
     type Item = B;
 
@@ -56,7 +60,7 @@ where
     where
         Self: Sized,
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
         let Self { iter, predicate } = self;
         iter.try_fold(init, |acc, x| match predicate(x) {

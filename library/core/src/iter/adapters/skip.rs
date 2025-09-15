@@ -5,6 +5,7 @@ use crate::iter::{
     FusedIterator, InPlaceIterable, TrustedFused, TrustedLen, TrustedRandomAccess,
     TrustedRandomAccessNoCoerce,
 };
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 
@@ -24,15 +25,17 @@ pub struct Skip<I> {
 }
 
 impl<I> Skip<I> {
-    pub(in crate::iter) fn new(iter: I, n: usize) -> Skip<I> {
+    pub(in crate::iter) const fn new(iter: I, n: usize) -> Skip<I> {
         Skip { iter, n }
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> Iterator for Skip<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const Iterator for Skip<I>
 where
-    I: Iterator,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = <I as Iterator>::Item;
 
@@ -104,8 +107,8 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         let n = self.n;
         self.n = 0;
@@ -121,7 +124,8 @@ where
     #[inline]
     fn fold<Acc, Fold>(mut self, init: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         if self.n > 0 {
             // nth(n) skips n+1
@@ -185,12 +189,20 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> ExactSizeIterator for Skip<I> where I: ExactSizeIterator {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const ExactSizeIterator for Skip<I>
+where
+    I: [const] ExactSizeIterator + [const] Destruct,
+    I::Item: [const] Destruct,
+{
+}
 
 #[stable(feature = "double_ended_skip_iterator", since = "1.9.0")]
-impl<I> DoubleEndedIterator for Skip<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const DoubleEndedIterator for Skip<I>
 where
-    I: DoubleEndedIterator + ExactSizeIterator,
+    I: [const] DoubleEndedIterator + [const] ExactSizeIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.len() > 0 { self.iter.next_back() } else { None }
@@ -213,13 +225,13 @@ where
     fn try_rfold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        R: [const] Try<Output = Acc>,
     {
-        fn check<T, Acc, R: Try<Output = Acc>>(
+        const fn check<T, Acc, R: Try<Output = Acc>>(
             mut n: usize,
             mut fold: impl FnMut(Acc, T) -> R,
-        ) -> impl FnMut(Acc, T) -> ControlFlow<R, Acc> {
+        ) -> impl [const] FnMut(Acc, T) -> ControlFlow<R, Acc> + [const] Destruct {
             move |acc, x| {
                 n -= 1;
                 let r = fold(acc, x);

@@ -3,6 +3,7 @@ use crate::iter::{
     Cloned, Copied, Empty, Filter, FilterMap, Fuse, FusedIterator, Map, Once, OnceWith,
     TrustedFused, TrustedLen,
 };
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 use crate::{array, fmt, option, result};
@@ -19,11 +20,22 @@ pub struct FlatMap<I, U: IntoIterator, F> {
 }
 
 impl<I: Iterator, U: IntoIterator, F: FnMut(I::Item) -> U> FlatMap<I, U, F> {
-    pub(in crate::iter) fn new(iter: I, f: F) -> FlatMap<I, U, F> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, f: F) -> FlatMap<I, U, F>
+    where
+        I: [const] Iterator + [const] Destruct,
+        I::Item: [const] Destruct,
+        F: [const] FnMut(I::Item) -> U + [const] Destruct,
+    {
         FlatMap { inner: FlattenCompat::new(iter.map(f)) }
     }
 
-    pub(crate) fn into_parts(self) -> (Option<U::IntoIter>, Option<I>, Option<U::IntoIter>) {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn into_parts(self) -> (Option<U::IntoIter>, Option<I>, Option<U::IntoIter>)
+    where
+        F: [const] Destruct,
+        I: [const] Destruct,
+    {
         (
             self.inner.frontiter,
             self.inner.iter.into_inner().map(Map::into_inner),
@@ -32,10 +44,11 @@ impl<I: Iterator, U: IntoIterator, F: FnMut(I::Item) -> U> FlatMap<I, U, F> {
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I: Clone, U, F: Clone> Clone for FlatMap<I, U, F>
+impl<I: [const] Clone, U, F: [const] Clone> const Clone for FlatMap<I, U, F>
 where
-    U: Clone + IntoIterator<IntoIter: Clone>,
+    U: [const] Clone + IntoIterator<IntoIter: [const] Clone>,
 {
     fn clone(&self) -> Self {
         FlatMap { inner: self.inner.clone() }
@@ -186,7 +199,11 @@ pub struct Flatten<I: Iterator<Item: IntoIterator>> {
 }
 
 impl<I: Iterator<Item: IntoIterator>> Flatten<I> {
-    pub(in super::super) fn new(iter: I) -> Flatten<I> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in super::super) const fn new(iter: I) -> Flatten<I>
+    where
+        I: [const] Iterator + [const] Destruct,
+    {
         Flatten { inner: FlattenCompat::new(iter) }
     }
 }
@@ -351,19 +368,25 @@ where
 
 /// Real logic of both `Flatten` and `FlatMap` which simply delegate to
 /// this type.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+#[derive_const(Clone)]
 #[unstable(feature = "trusted_len", issue = "37572")]
 struct FlattenCompat<I, U> {
     iter: Fuse<I>,
     frontiter: Option<U>,
     backiter: Option<U>,
 }
+
 impl<I, U> FlattenCompat<I, U>
 where
     I: Iterator,
 {
     /// Adapts an iterator by flattening it, for use in `flatten()` and `flat_map()`.
-    fn new(iter: I) -> FlattenCompat<I, U> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn new(iter: I) -> FlattenCompat<I, U>
+    where
+        I: [const] Iterator + [const] Destruct,
+    {
         FlattenCompat { iter: iter.fuse(), frontiter: None, backiter: None }
     }
 }
@@ -377,14 +400,18 @@ where
     /// Folds over the inner iterators, not over their elements. Is used by the `fold`, `count`,
     /// and `last` methods.
     #[inline]
-    fn iter_fold<Acc, Fold>(self, mut acc: Acc, mut fold: Fold) -> Acc
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn iter_fold<Acc: [const] Destruct, Fold>(self, mut acc: Acc, mut fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, U) -> Acc,
+        Fold: [const] FnMut(Acc, U) -> Acc,
+        I: [const] Iterator + [const] Destruct,
+        I::Item: [const] Destruct,
     {
         #[inline]
-        fn flatten<T: IntoIterator, Acc>(
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn flatten<T: IntoIterator, Acc>(
             fold: &mut impl FnMut(Acc, T::IntoIter) -> Acc,
-        ) -> impl FnMut(Acc, T) -> Acc + '_ {
+        ) -> impl [const] FnMut(Acc, T) -> Acc + '_ + [const] Destruct {
             move |acc, iter| fold(acc, iter.into_iter())
         }
 
@@ -407,16 +434,20 @@ where
     /// Folds over the inner iterators, not over their elements. Is used by the `try_fold` and
     /// `advance_by` methods.
     #[inline]
-    fn iter_try_fold<Acc, Fold, R>(&mut self, mut acc: Acc, mut fold: Fold) -> R
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn iter_try_fold<Acc, Fold, R>(&mut self, mut acc: Acc, mut fold: Fold) -> R
     where
-        Fold: FnMut(Acc, &mut U) -> R,
-        R: Try<Output = Acc>,
+        I: [const] Iterator + [const] Destruct,
+        I::Item: [const] Destruct,
+        Fold: [const] FnMut(Acc, &mut U) -> R,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn flatten<'a, T: IntoIterator, Acc, R: Try<Output = Acc>>(
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn flatten<'a, T: IntoIterator, Acc, R: Try<Output = Acc>>(
             frontiter: &'a mut Option<T::IntoIter>,
-            fold: &'a mut impl FnMut(Acc, &mut T::IntoIter) -> R,
-        ) -> impl FnMut(Acc, T) -> R + 'a {
+            fold: &'a mut impl [const] FnMut(Acc, &mut T::IntoIter) -> R,
+        ) -> impl [const] FnMut(Acc, T) -> R + 'a + [const] Destruct {
             move |acc, iter| fold(acc, frontiter.insert(iter.into_iter()))
         }
 
@@ -446,14 +477,19 @@ where
     ///
     /// Folds over the inner iterators, not over their elements. Is used by the `rfold` method.
     #[inline]
-    fn iter_rfold<Acc, Fold>(self, mut acc: Acc, mut fold: Fold) -> Acc
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn iter_rfold<Acc, Fold>(self, mut acc: Acc, mut fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, U) -> Acc,
+        Fold: [const] FnMut(Acc, U) -> Acc,
+        I: [const] DoubleEndedIterator + [const] Destruct,
+        I::Item: [const] Destruct,
+        Acc: [const] Destruct,
     {
         #[inline]
-        fn flatten<T: IntoIterator, Acc>(
-            fold: &mut impl FnMut(Acc, T::IntoIter) -> Acc,
-        ) -> impl FnMut(Acc, T) -> Acc + '_ {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn flatten<T: IntoIterator, Acc: [const] Destruct>(
+            fold: &mut impl [const] FnMut(Acc, T::IntoIter) -> Acc,
+        ) -> impl [const] FnMut(Acc, T) -> Acc + '_ + [const] Destruct {
             move |acc, iter| fold(acc, iter.into_iter())
         }
 
@@ -476,16 +512,20 @@ where
     /// Folds over the inner iterators, not over their elements. Is used by the `try_rfold` and
     /// `advance_back_by` methods.
     #[inline]
-    fn iter_try_rfold<Acc, Fold, R>(&mut self, mut acc: Acc, mut fold: Fold) -> R
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn iter_try_rfold<Acc, Fold, R>(&mut self, mut acc: Acc, mut fold: Fold) -> R
     where
-        Fold: FnMut(Acc, &mut U) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, &mut U) -> R,
+        I: [const] DoubleEndedIterator + [const] Destruct,
+        I::Item: [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn flatten<'a, T: IntoIterator, Acc, R: Try>(
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn flatten<'a, T: IntoIterator, Acc, R: Try>(
             backiter: &'a mut Option<T::IntoIter>,
-            fold: &'a mut impl FnMut(Acc, &mut T::IntoIter) -> R,
-        ) -> impl FnMut(Acc, T) -> R + 'a {
+            fold: &'a mut impl [const] FnMut(Acc, &mut T::IntoIter) -> R,
+        ) -> impl [const] FnMut(Acc, T) -> R + 'a + [const] Destruct {
             move |acc, iter| fold(acc, backiter.insert(iter.into_iter()))
         }
 
@@ -507,10 +547,14 @@ where
 }
 
 // See also the `OneShot` specialization below.
-impl<I, U> Iterator for FlattenCompat<I, U>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, U> const Iterator for FlattenCompat<I, U>
 where
-    I: Iterator<Item: IntoIterator<IntoIter = U, Item = U::Item>>,
-    U: Iterator,
+    I: [const] Iterator<
+            Item: [const] IntoIterator<IntoIter = U, Item = U::Item> + [const] Destruct,
+        > + [const] Destruct,
+    U: [const] Iterator + [const] Destruct,
+    U::Item: [const] Destruct,
 {
     type Item = U::Item;
 
@@ -553,8 +597,8 @@ where
     default fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
         fn flatten<U: Iterator, Acc, R: Try<Output = Acc>>(
@@ -569,12 +613,13 @@ where
     #[inline]
     default fn fold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         #[inline]
-        fn flatten<U: Iterator, Acc>(
+        const fn flatten<U: Iterator, Acc>(
             mut fold: impl FnMut(Acc, U::Item) -> Acc,
-        ) -> impl FnMut(Acc, U) -> Acc {
+        ) -> impl [const] FnMut(Acc, U) -> Acc {
             move |acc, iter| iter.fold(acc, &mut fold)
         }
 
@@ -586,7 +631,8 @@ where
     default fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         #[inline]
         #[rustc_inherit_overflow_checks]
-        fn advance<U: Iterator>(n: usize, iter: &mut U) -> ControlFlow<(), usize> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn advance<U: [const] Iterator>(n: usize, iter: &mut U) -> ControlFlow<(), usize> {
             match iter.advance_by(n) {
                 Ok(()) => ControlFlow::Break(()),
                 Err(remaining) => ControlFlow::Continue(remaining.get()),
@@ -603,7 +649,11 @@ where
     default fn count(self) -> usize {
         #[inline]
         #[rustc_inherit_overflow_checks]
-        fn count<U: Iterator>(acc: usize, iter: U) -> usize {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn count<U: [const] Iterator + [const] Destruct>(acc: usize, iter: U) -> usize
+        where
+            U::Item: [const] Destruct,
+        {
             acc + iter.count()
         }
 
@@ -613,7 +663,14 @@ where
     #[inline]
     default fn last(self) -> Option<Self::Item> {
         #[inline]
-        fn last<U: Iterator>(last: Option<U::Item>, iter: U) -> Option<U::Item> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn last<U: [const] Iterator + [const] Destruct>(
+            last: Option<U::Item>,
+            iter: U,
+        ) -> Option<U::Item>
+        where
+            U::Item: [const] Destruct,
+        {
             iter.last().or(last)
         }
 
@@ -622,10 +679,15 @@ where
 }
 
 // See also the `OneShot` specialization below.
-impl<I, U> DoubleEndedIterator for FlattenCompat<I, U>
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, U> const DoubleEndedIterator for FlattenCompat<I, U>
 where
-    I: DoubleEndedIterator<Item: IntoIterator<IntoIter = U, Item = U::Item>>,
-    U: DoubleEndedIterator,
+    I: [const] DoubleEndedIterator<
+            Item: [const] IntoIterator<IntoIter = U, Item = U::Item> + [const] Destruct,
+        > + [const] Destruct,
+    U: [const] DoubleEndedIterator + [const] Destruct,
+    U::Item: [const] Destruct,
 {
     #[inline]
     default fn next_back(&mut self) -> Option<U::Item> {
@@ -645,12 +707,12 @@ where
     where
         Self: Sized,
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn flatten<U: DoubleEndedIterator, Acc, R: Try<Output = Acc>>(
+        const fn flatten<U: DoubleEndedIterator, Acc, R: Try<Output = Acc>>(
             mut fold: impl FnMut(Acc, U::Item) -> R,
-        ) -> impl FnMut(Acc, &mut U) -> R {
+        ) -> impl [const] FnMut(Acc, &mut U) -> R {
             move |acc, iter| iter.try_rfold(acc, &mut fold)
         }
 
@@ -660,12 +722,13 @@ where
     #[inline]
     default fn rfold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         #[inline]
-        fn flatten<U: DoubleEndedIterator, Acc>(
+        const fn flatten<U: DoubleEndedIterator, Acc>(
             mut fold: impl FnMut(Acc, U::Item) -> Acc,
-        ) -> impl FnMut(Acc, U) -> Acc {
+        ) -> impl [const] FnMut(Acc, U) -> Acc {
             move |acc, iter| iter.rfold(acc, &mut fold)
         }
 
@@ -677,7 +740,10 @@ where
     default fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         #[inline]
         #[rustc_inherit_overflow_checks]
-        fn advance<U: DoubleEndedIterator>(n: usize, iter: &mut U) -> ControlFlow<(), usize> {
+        const fn advance<U: [const] DoubleEndedIterator>(
+            n: usize,
+            iter: &mut U,
+        ) -> ControlFlow<(), usize> {
             match iter.advance_back_by(n) {
                 Ok(()) => ControlFlow::Break(()),
                 Err(remaining) => ControlFlow::Continue(remaining.get()),
@@ -712,14 +778,17 @@ where
 {
 }
 
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 trait ConstSizeIntoIterator: IntoIterator {
     // FIXME(#31844): convert to an associated const once specialization supports that
     fn size() -> Option<usize>;
 }
 
-impl<T> ConstSizeIntoIterator for T
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ConstSizeIntoIterator for T
 where
-    T: IntoIterator,
+    T: [const] IntoIterator,
 {
     #[inline]
     default fn size() -> Option<usize> {
@@ -727,21 +796,24 @@ where
     }
 }
 
-impl<T, const N: usize> ConstSizeIntoIterator for [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const ConstSizeIntoIterator for [T; N] {
     #[inline]
     fn size() -> Option<usize> {
         Some(N)
     }
 }
 
-impl<T, const N: usize> ConstSizeIntoIterator for &[T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const ConstSizeIntoIterator for &[T; N] {
     #[inline]
     fn size() -> Option<usize> {
         Some(N)
     }
 }
 
-impl<T, const N: usize> ConstSizeIntoIterator for &mut [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const ConstSizeIntoIterator for &mut [T; N] {
     #[inline]
     fn size() -> Option<usize> {
         Some(N)
@@ -749,7 +821,10 @@ impl<T, const N: usize> ConstSizeIntoIterator for &mut [T; N] {
 }
 
 #[inline]
-fn and_then_or_clear<T, U>(opt: &mut Option<T>, f: impl FnOnce(&mut T) -> Option<U>) -> Option<U> {
+const fn and_then_or_clear<T, U>(
+    opt: &mut Option<T>,
+    f: impl [const] FnOnce(&mut T) -> Option<U>,
+) -> Option<U> {
     let x = f(opt.as_mut()?);
     if x.is_none() {
         *opt = None;
@@ -792,17 +867,17 @@ impl<I: OneShot, F> OneShot for Map<I, F> {}
 impl<I: OneShot> OneShot for &mut I {}
 
 #[inline]
-fn into_item<I>(inner: I) -> Option<I::Item>
+const fn into_item<I>(inner: I) -> Option<I::Item>
 where
-    I: IntoIterator<IntoIter: OneShot>,
+    I: [const] IntoIterator<IntoIter: OneShot>,
 {
     inner.into_iter().next()
 }
 
 #[inline]
-fn flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc>(
+const fn flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc>(
     mut fold: impl FnMut(Acc, I::Item) -> Acc,
-) -> impl FnMut(Acc, I) -> Acc {
+) -> impl [const] FnMut(Acc, I) -> Acc + [const] Destruct {
     move |acc, inner| match inner.into_iter().next() {
         Some(item) => fold(acc, item),
         None => acc,
@@ -810,9 +885,9 @@ fn flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc>(
 }
 
 #[inline]
-fn try_flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc, R: Try<Output = Acc>>(
+const fn try_flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc, R: Try<Output = Acc>>(
     mut fold: impl FnMut(Acc, I::Item) -> R,
-) -> impl FnMut(Acc, I) -> R {
+) -> impl [const] FnMut(Acc, I) -> R + [const] Destruct {
     move |acc, inner| match inner.into_iter().next() {
         Some(item) => fold(acc, item),
         None => try { acc },
@@ -820,9 +895,9 @@ fn try_flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc, R: Try<Output = Acc>
 }
 
 #[inline]
-fn advance_by_one<I>(n: NonZero<usize>, inner: I) -> Option<NonZero<usize>>
+const fn advance_by_one<I>(n: NonZero<usize>, inner: I) -> Option<NonZero<usize>>
 where
-    I: IntoIterator<IntoIter: OneShot>,
+    I: [const] IntoIterator<IntoIter: OneShot>,
 {
     match inner.into_iter().next() {
         Some(_) => NonZero::new(n.get() - 1),
@@ -842,10 +917,15 @@ where
 //
 // An exception to that is `advance_by(0)` and `advance_back_by(0)`, where the generic impls may set
 // `frontiter` or `backiter` without consuming the item, so we **must** override those.
-impl<I, U> Iterator for FlattenCompat<I, U>
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, U> const Iterator for FlattenCompat<I, U>
 where
-    I: Iterator<Item: IntoIterator<IntoIter = U, Item = U::Item>>,
-    U: Iterator + OneShot,
+    I: [const] Iterator<
+            Item: [const] IntoIterator<IntoIter = U, Item = U::Item> + [const] Destruct,
+        > + [const] Destruct,
+    U: [const] Iterator + [const] Destruct + OneShot,
+    U::Item: [const] Destruct,
 {
     #[inline]
     fn next(&mut self) -> Option<U::Item> {
@@ -872,7 +952,7 @@ where
     where
         Self: Sized,
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_fold(init, try_flatten_one(fold))
     }
@@ -881,6 +961,7 @@ where
     fn fold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
         Fold: FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         self.iter.fold(init, flatten_one(fold))
     }
@@ -908,10 +989,15 @@ where
 
 // Note: We don't actually care about `U: DoubleEndedIterator`, since forward and backward are the
 // same for a one-shot iterator, but we have to keep that to match the default specialization.
-impl<I, U> DoubleEndedIterator for FlattenCompat<I, U>
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, U> const DoubleEndedIterator for FlattenCompat<I, U>
 where
-    I: DoubleEndedIterator<Item: IntoIterator<IntoIter = U, Item = U::Item>>,
-    U: DoubleEndedIterator + OneShot,
+    I: [const] DoubleEndedIterator<
+            Item: [const] IntoIterator<IntoIter = U, Item = U::Item> + [const] Destruct,
+        > + [const] Destruct,
+    U: [const] DoubleEndedIterator + OneShot + [const] Destruct,
+    U::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<U::Item> {
@@ -928,7 +1014,7 @@ where
     where
         Self: Sized,
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_rfold(init, try_flatten_one(fold))
     }
@@ -937,6 +1023,7 @@ where
     fn rfold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
         Fold: FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         self.iter.rfold(init, flatten_one(fold))
     }

@@ -10,7 +10,7 @@ use crate::{cmp, fmt, hash, mem, num};
 /// Note that particularly large alignments, while representable in this type,
 /// are likely not to be supported by actual allocators and linkers.
 #[unstable(feature = "ptr_alignment_type", issue = "102070")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Alignment(AlignmentEnum);
 
@@ -211,7 +211,8 @@ impl const From<Alignment> for usize {
 }
 
 #[unstable(feature = "ptr_alignment_type", issue = "102070")]
-impl cmp::Ord for Alignment {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const cmp::Ord for Alignment {
     #[inline]
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.as_nonzero().get().cmp(&other.as_nonzero().get())
@@ -219,7 +220,8 @@ impl cmp::Ord for Alignment {
 }
 
 #[unstable(feature = "ptr_alignment_type", issue = "102070")]
-impl cmp::PartialOrd for Alignment {
+#[rustc_const_unstable(feature = "const_ops", issue = "143802")]
+impl const cmp::PartialOrd for Alignment {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         Some(self.cmp(other))
@@ -244,7 +246,7 @@ impl const Default for Alignment {
 }
 
 #[cfg(target_pointer_width = "16")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(usize)]
 enum AlignmentEnum {
     _Align1Shl0 = 1 << 0,
@@ -266,7 +268,7 @@ enum AlignmentEnum {
 }
 
 #[cfg(target_pointer_width = "32")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(usize)]
 enum AlignmentEnum {
     _Align1Shl0 = 1 << 0,
@@ -304,7 +306,7 @@ enum AlignmentEnum {
 }
 
 #[cfg(target_pointer_width = "64")]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive_const(Copy, Clone, PartialEq, Eq)]
 #[repr(usize)]
 enum AlignmentEnum {
     _Align1Shl0 = 1 << 0,

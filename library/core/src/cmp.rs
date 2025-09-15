@@ -381,8 +381,8 @@ pub struct AssertParamIsEq<T: Eq + PointeeSized> {
 ///
 /// assert_eq!(2.cmp(&1), Ordering::Greater);
 /// ```
-#[derive(Copy, Debug, Hash)]
-#[derive_const(Clone, Eq, PartialOrd, Ord, PartialEq)]
+#[derive(Debug, Hash)]
+#[derive_const(Clone, Copy, Eq, PartialOrd, Ord, PartialEq)]
 #[stable(feature = "rust1", since = "1.0.0")]
 // This is a lang item only so that `BinOp::Cmp` in MIR can return it.
 // It has no special behavior, but does require that the three variants

@@ -55,7 +55,7 @@
 #![allow(missing_docs)]
 
 use crate::ffi::va_list::{VaArgSafe, VaListImpl};
-use crate::marker::{ConstParamTy, DiscriminantKind, PointeeSized, Tuple};
+use crate::marker::{ConstParamTy, Destruct, DiscriminantKind, PointeeSized, Tuple};
 use crate::ptr;
 
 mod bounds;
@@ -71,7 +71,8 @@ use crate::sync::atomic::{self, AtomicBool, AtomicI32, AtomicIsize, AtomicU32, O
 /// A type for atomic ordering parameters for intrinsics. This is a separate type from
 /// `atomic::Ordering` so that we can make it `ConstParamTy` and fix the values used here without a
 /// risk of leaking that to stable code.
-#[derive(Debug, ConstParamTy, PartialEq, Eq)]
+#[derive(ConstParamTy, Debug)]
+#[derive_const(PartialEq, Eq)]
 pub enum AtomicOrdering {
     // These values must match the compiler's `AtomicOrdering` defined in
     // `rustc_middle/src/ty/consts/int.rs`!
@@ -365,7 +366,7 @@ pub fn rustc_peek<T>(_: T) -> T;
 /// `SIGBUS`.  The precise behavior is not guaranteed and not stable.
 #[rustc_nounwind]
 #[rustc_intrinsic]
-pub fn abort() -> !;
+pub const fn abort() -> !;
 
 /// Informs the optimizer that this point in the code is not reachable,
 /// enabling further optimizations.
@@ -481,7 +482,8 @@ pub const fn unlikely(b: bool) -> bool {
 #[rustc_nounwind]
 #[miri::intrinsic_fallback_is_spec]
 #[inline]
-pub fn select_unpredictable<T>(b: bool, true_val: T, false_val: T) -> T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn select_unpredictable<T: [const] Destruct>(b: bool, true_val: T, false_val: T) -> T {
     if b { true_val } else { false_val }
 }
 
@@ -946,7 +948,7 @@ pub const unsafe fn slice_get_unchecked<
 /// Consider using [`pointer::mask`] instead.
 #[rustc_nounwind]
 #[rustc_intrinsic]
-pub fn ptr_mask<T>(ptr: *const T, mask: usize) -> *const T;
+pub const fn ptr_mask<T>(ptr: *const T, mask: usize) -> *const T;
 
 /// Equivalent to the appropriate `llvm.memcpy.p0i8.0i8.*` intrinsic, with
 /// a size of `count` * `size_of::<T>()` and an alignment of `align_of::<T>()`.

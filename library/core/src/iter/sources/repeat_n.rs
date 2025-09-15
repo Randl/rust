@@ -1,5 +1,6 @@
 use crate::fmt;
 use crate::iter::{FusedIterator, TrustedLen, UncheckedIterator};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -55,8 +56,9 @@ use crate::ops::Try;
 /// assert_eq!(None, it.next());
 /// ```
 #[inline]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "iter_repeat_n", since = "1.82.0")]
-pub fn repeat_n<T: Clone>(element: T, count: usize) -> RepeatN<T> {
+pub const fn repeat_n<T: [const] Clone + [const] Destruct>(element: T, count: usize) -> RepeatN<T> {
     RepeatN { inner: RepeatNInner::new(element, count) }
 }
 
@@ -67,7 +69,11 @@ struct RepeatNInner<T> {
 }
 
 impl<T> RepeatNInner<T> {
-    fn new(element: T, count: usize) -> Option<Self> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const fn new(element: T, count: usize) -> Option<Self>
+    where
+        T: [const] Destruct,
+    {
         let count = NonZero::<usize>::new(count)?;
         Some(Self { element, count })
     }
@@ -86,7 +92,7 @@ pub struct RepeatN<A> {
 impl<A> RepeatN<A> {
     /// If we haven't already dropped the element, return it in an option.
     #[inline]
-    fn take_element(&mut self) -> Option<A> {
+    const fn take_element(&mut self) -> Option<A> {
         self.inner.take().map(|inner| inner.element)
     }
 }
@@ -103,7 +109,8 @@ impl<A: fmt::Debug> fmt::Debug for RepeatN<A> {
 }
 
 #[stable(feature = "iter_repeat_n", since = "1.82.0")]
-impl<A: Clone> Iterator for RepeatN<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Clone + [const] Destruct> const Iterator for RepeatN<A> {
     type Item = A;
 
     #[inline]
@@ -156,14 +163,16 @@ impl<A: Clone> Iterator for RepeatN<A> {
 }
 
 #[stable(feature = "iter_repeat_n", since = "1.82.0")]
-impl<A: Clone> ExactSizeIterator for RepeatN<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Clone + [const] Destruct> const ExactSizeIterator for RepeatN<A> {
     fn len(&self) -> usize {
         self.inner.as_ref().map(|inner| inner.count.get()).unwrap_or(0)
     }
 }
 
 #[stable(feature = "iter_repeat_n", since = "1.82.0")]
-impl<A: Clone> DoubleEndedIterator for RepeatN<A> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Clone + [const] Destruct> const DoubleEndedIterator for RepeatN<A> {
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         self.next()
@@ -182,8 +191,8 @@ impl<A: Clone> DoubleEndedIterator for RepeatN<A> {
     #[inline]
     fn try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
-        F: FnMut(B, A) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, A) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         self.try_fold(init, f)
     }
@@ -191,16 +200,20 @@ impl<A: Clone> DoubleEndedIterator for RepeatN<A> {
     #[inline]
     fn rfold<B, F>(self, init: B, f: F) -> B
     where
-        F: FnMut(B, A) -> B,
+        F: [const] FnMut(B, A) -> B + [const] Destruct,
+        B: [const] Destruct,
     {
         self.fold(init, f)
     }
 }
 
 #[stable(feature = "iter_repeat_n", since = "1.82.0")]
-impl<A: Clone> FusedIterator for RepeatN<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Clone + [const] Destruct> const FusedIterator for RepeatN<A> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<A: Clone> TrustedLen for RepeatN<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<A: [const] Clone + [const] Destruct> const TrustedLen for RepeatN<A> {}
 #[stable(feature = "iter_repeat_n", since = "1.82.0")]
-impl<A: Clone> UncheckedIterator for RepeatN<A> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Clone + [const] Destruct> const UncheckedIterator for RepeatN<A> {}

@@ -152,7 +152,8 @@ use crate::ptr;
 /// [`MaybeUninit`]: crate::mem::MaybeUninit
 #[stable(feature = "manually_drop", since = "1.20.0")]
 #[lang = "manually_drop"]
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Hash)]
+#[derive_const(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 #[rustc_pub_transparent]
 pub struct ManuallyDrop<T: ?Sized> {
@@ -218,7 +219,8 @@ impl<T> ManuallyDrop<T> {
     #[must_use = "if you don't need the value, you can use `ManuallyDrop::drop` instead"]
     #[stable(feature = "manually_drop_take", since = "1.42.0")]
     #[inline]
-    pub unsafe fn take(slot: &mut ManuallyDrop<T>) -> T {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn take(slot: &mut ManuallyDrop<T>) -> T {
         // SAFETY: we are reading from a reference, which is guaranteed
         // to be valid for reads.
         unsafe { ptr::read(&slot.value) }

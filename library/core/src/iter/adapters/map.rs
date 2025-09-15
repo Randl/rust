@@ -2,6 +2,7 @@ use crate::fmt;
 use crate::iter::adapters::zip::try_get_unchecked;
 use crate::iter::adapters::{SourceIter, TrustedRandomAccess, TrustedRandomAccessNoCoerce};
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused, TrustedLen, UncheckedIterator};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -57,7 +58,8 @@ use crate::ops::Try;
 /// ```
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
-#[derive(Clone)]
+#[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+#[derive_const(Clone)]
 pub struct Map<I, F> {
     // Used for `SplitWhitespace` and `SplitAsciiWhitespace` `as_str` methods
     pub(crate) iter: I,
@@ -65,11 +67,17 @@ pub struct Map<I, F> {
 }
 
 impl<I, F> Map<I, F> {
-    pub(in crate::iter) fn new(iter: I, f: F) -> Map<I, F> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, f: F) -> Map<I, F> {
         Map { iter, f }
     }
 
-    pub(crate) fn into_inner(self) -> I {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn into_inner(self) -> I
+    where
+        I: [const] Destruct,
+        F: [const] Destruct,
+    {
         self.iter
     }
 }
@@ -81,24 +89,27 @@ impl<I: fmt::Debug, F> fmt::Debug for Map<I, F> {
     }
 }
 
-fn map_fold<T, B, Acc>(
+const fn map_fold<T, B, Acc>(
     mut f: impl FnMut(T) -> B,
     mut g: impl FnMut(Acc, B) -> Acc,
-) -> impl FnMut(Acc, T) -> Acc {
+) -> impl [const] FnMut(Acc, T) -> Acc + [const] Destruct {
     move |acc, elt| g(acc, f(elt))
 }
 
-fn map_try_fold<'a, T, B, Acc, R>(
+const fn map_try_fold<'a, T, B, Acc, R>(
     f: &'a mut impl FnMut(T) -> B,
     mut g: impl FnMut(Acc, B) -> R + 'a,
-) -> impl FnMut(Acc, T) -> R + 'a {
+) -> impl [const] FnMut(Acc, T) -> R + 'a + [const] Destruct {
     move |acc, elt| g(acc, f(elt))
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<B, I: Iterator, F> Iterator for Map<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<B, I: [const] Iterator, F> const Iterator for Map<I, F>
 where
-    F: FnMut(I::Item) -> B,
+    F: [const] FnMut(I::Item) -> B,
+    I: [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = B;
 
@@ -115,15 +126,16 @@ where
     fn try_fold<Acc, G, R>(&mut self, init: Acc, g: G) -> R
     where
         Self: Sized,
-        G: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        G: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_fold(init, map_try_fold(&mut self.f, g))
     }
 
     fn fold<Acc, G>(self, init: Acc, g: G) -> Acc
     where
-        G: FnMut(Acc, Self::Item) -> Acc,
+        G: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.iter.fold(init, map_fold(self.f, g))
     }
@@ -140,9 +152,12 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<B, I: DoubleEndedIterator, F> DoubleEndedIterator for Map<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<B, I: [const] DoubleEndedIterator + [const] Destruct, F> const DoubleEndedIterator
+    for Map<I, F>
 where
-    F: FnMut(I::Item) -> B,
+    F: [const] FnMut(I::Item) -> B,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<B> {
@@ -152,24 +167,27 @@ where
     fn try_rfold<Acc, G, R>(&mut self, init: Acc, g: G) -> R
     where
         Self: Sized,
-        G: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        G: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_rfold(init, map_try_fold(&mut self.f, g))
     }
 
     fn rfold<Acc, G>(self, init: Acc, g: G) -> Acc
     where
-        G: FnMut(Acc, Self::Item) -> Acc,
+        G: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.iter.rfold(init, map_fold(self.f, g))
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<B, I: ExactSizeIterator, F> ExactSizeIterator for Map<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<B, I: [const] ExactSizeIterator + [const] Destruct, F> const ExactSizeIterator for Map<I, F>
 where
-    F: FnMut(I::Item) -> B,
+    F: [const] FnMut(I::Item) -> B,
+    I::Item: [const] Destruct,
 {
     fn len(&self) -> usize {
         self.iter.len()
@@ -187,17 +205,21 @@ impl<B, I: FusedIterator, F> FusedIterator for Map<I, F> where F: FnMut(I::Item)
 unsafe impl<I: TrustedFused, F> TrustedFused for Map<I, F> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<B, I, F> TrustedLen for Map<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<B, I, F> const TrustedLen for Map<I, F>
 where
-    I: TrustedLen,
-    F: FnMut(I::Item) -> B,
+    I: [const] TrustedLen + [const] Destruct,
+    F: [const] FnMut(I::Item) -> B,
+    I::Item: [const] Destruct,
 {
 }
 
-impl<B, I, F> UncheckedIterator for Map<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<B, I, F> const UncheckedIterator for Map<I, F>
 where
-    I: UncheckedIterator,
-    F: FnMut(I::Item) -> B,
+    I: [const] UncheckedIterator + [const] Destruct,
+    F: [const] FnMut(I::Item) -> B,
+    I::Item: [const] Destruct,
 {
     unsafe fn next_unchecked(&mut self) -> B {
         // SAFETY: `Map` is 1:1 with the inner iterator, so if the caller promised
@@ -209,13 +231,15 @@ where
 
 #[doc(hidden)]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I, F> TrustedRandomAccess for Map<I, F> where I: TrustedRandomAccess {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I, F> const TrustedRandomAccess for Map<I, F> where I: [const] TrustedRandomAccess {}
 
 #[doc(hidden)]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I, F> TrustedRandomAccessNoCoerce for Map<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I, F> const TrustedRandomAccessNoCoerce for Map<I, F>
 where
-    I: TrustedRandomAccessNoCoerce,
+    I: [const] TrustedRandomAccessNoCoerce,
 {
     const MAY_HAVE_SIDE_EFFECT: bool = true;
 }

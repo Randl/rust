@@ -1,5 +1,6 @@
 use crate::fmt;
 use crate::iter::{Fuse, FusedIterator};
+use crate::marker::Destruct;
 
 /// An iterator adapter that places a separator between all elements.
 ///
@@ -29,16 +30,21 @@ impl<I: Iterator> Intersperse<I>
 where
     I::Item: Clone,
 {
-    pub(in crate::iter) fn new(iter: I, separator: I::Item) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, separator: I::Item) -> Self
+    where
+        I: [const] Iterator + [const] Destruct,
+    {
         Self { started: false, separator, next_item: None, iter: iter.fuse() }
     }
 }
 
 #[unstable(feature = "iter_intersperse", reason = "recently added", issue = "79524")]
-impl<I> Iterator for Intersperse<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const Iterator for Intersperse<I>
 where
-    I: Iterator,
-    I::Item: Clone,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Clone + [const] Destruct,
 {
     type Item = I::Item;
 
@@ -68,8 +74,9 @@ where
 
     fn fold<B, F>(self, init: B, f: F) -> B
     where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
+        Self: Sized + [const] Destruct,
+        F: [const] FnMut(B, Self::Item) -> B,
+        B: [const] Destruct,
     {
         let separator = self.separator;
         intersperse_fold(
@@ -145,7 +152,11 @@ where
     I: Iterator,
     G: FnMut() -> I::Item,
 {
-    pub(in crate::iter) fn new(iter: I, separator: G) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, separator: G) -> Self
+    where
+        I: [const] Iterator + [const] Destruct,
+    {
         Self { started: false, separator, next_item: None, iter: iter.fuse() }
     }
 }
@@ -191,9 +202,14 @@ where
     }
 }
 
-fn intersperse_size_hint<I>(iter: &I, started: bool, next_is_some: bool) -> (usize, Option<usize>)
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn intersperse_size_hint<I>(
+    iter: &I,
+    started: bool,
+    next_is_some: bool,
+) -> (usize, Option<usize>)
 where
-    I: Iterator,
+    I: [const] Iterator,
 {
     let (lo, hi) = iter.size_hint();
     (
@@ -208,7 +224,7 @@ where
     )
 }
 
-fn intersperse_fold<I, B, F, G>(
+const fn intersperse_fold<I, B, F, G>(
     mut iter: I,
     init: B,
     mut f: F,
@@ -217,9 +233,11 @@ fn intersperse_fold<I, B, F, G>(
     mut next_item: Option<I::Item>,
 ) -> B
 where
-    I: Iterator,
-    F: FnMut(B, I::Item) -> B,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
+    F: [const] FnMut(B, I::Item) -> B,
     G: FnMut() -> I::Item,
+    B: [const] Destruct,
 {
     let mut accum = init;
 

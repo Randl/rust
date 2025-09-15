@@ -1,5 +1,6 @@
 //! This module contains a variety of sort implementations that are optimized for small lengths.
 
+use crate::marker::Destruct;
 use crate::mem::{self, ManuallyDrop, MaybeUninit};
 use crate::slice::sort::shared::FreezeMarker;
 use crate::{hint, intrinsics, ptr, slice};
@@ -15,19 +16,22 @@ use crate::{hint, intrinsics, ptr, slice};
 
 /// Using a trait allows us to specialize on `Freeze` which in turn allows us to make safe
 /// abstractions.
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub(crate) trait StableSmallSortTypeImpl: Sized {
     /// For which input length <= return value of this function, is it valid to call `small_sort`.
     fn small_sort_threshold() -> usize;
 
     /// Sorts `v` using strategies optimized for small sizes.
-    fn small_sort<F: FnMut(&Self, &Self) -> bool>(
+    fn small_sort<F: [const] FnMut(&Self, &Self) -> bool>(
         v: &mut [Self],
         scratch: &mut [MaybeUninit<Self>],
         is_less: &mut F,
     );
 }
 
-impl<T> StableSmallSortTypeImpl for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Destruct> const StableSmallSortTypeImpl for T {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         // Optimal number of comparisons, and good perf.
@@ -35,7 +39,7 @@ impl<T> StableSmallSortTypeImpl for T {
     }
 
     #[inline(always)]
-    default fn small_sort<F: FnMut(&T, &T) -> bool>(
+    default fn small_sort<F: [const] FnMut(&T, &T) -> bool>(
         v: &mut [T],
         _scratch: &mut [MaybeUninit<T>],
         is_less: &mut F,
@@ -46,14 +50,15 @@ impl<T> StableSmallSortTypeImpl for T {
     }
 }
 
-impl<T: FreezeMarker> StableSmallSortTypeImpl for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] FreezeMarker + [const] Destruct> const StableSmallSortTypeImpl for T {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         SMALL_SORT_GENERAL_THRESHOLD
     }
 
     #[inline(always)]
-    fn small_sort<F: FnMut(&T, &T) -> bool>(
+    fn small_sort<F: [const] FnMut(&T, &T) -> bool>(
         v: &mut [T],
         scratch: &mut [MaybeUninit<T>],
         is_less: &mut F,
@@ -64,15 +69,20 @@ impl<T: FreezeMarker> StableSmallSortTypeImpl for T {
 
 /// Using a trait allows us to specialize on `Freeze` which in turn allows us to make safe
 /// abstractions.
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+#[const_trait]
 pub(crate) trait UnstableSmallSortTypeImpl: Sized {
     /// For which input length <= return value of this function, is it valid to call `small_sort`.
     fn small_sort_threshold() -> usize;
 
     /// Sorts `v` using strategies optimized for small sizes.
-    fn small_sort<F: FnMut(&Self, &Self) -> bool>(v: &mut [Self], is_less: &mut F);
+    fn small_sort<F: [const] FnMut(&Self, &Self) -> bool>(v: &mut [Self], is_less: &mut F)
+    where
+        Self: [const] Destruct;
 }
 
-impl<T> UnstableSmallSortTypeImpl for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         SMALL_SORT_FALLBACK_THRESHOLD
@@ -81,13 +91,15 @@ impl<T> UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     default fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: FnMut(&T, &T) -> bool,
+        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+        Self: [const] Destruct,
     {
         small_sort_fallback(v, is_less);
     }
 }
 
-impl<T: FreezeMarker> UnstableSmallSortTypeImpl for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] FreezeMarker> const UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         <T as UnstableSmallSortFreezeTypeImpl>::small_sort_threshold()
@@ -96,7 +108,7 @@ impl<T: FreezeMarker> UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: FnMut(&T, &T) -> bool,
+        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
     {
         <T as UnstableSmallSortFreezeTypeImpl>::small_sort(v, is_less);
     }
@@ -104,13 +116,19 @@ impl<T: FreezeMarker> UnstableSmallSortTypeImpl for T {
 
 /// FIXME(const_trait_impl) use original ipnsort approach with choose_unstable_small_sort,
 /// as found here <https://github.com/Voultapher/sort-research-rs/blob/438fad5d0495f65d4b72aa87f0b62fc96611dff3/ipnsort/src/smallsort.rs#L83C10-L83C36>.
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub(crate) trait UnstableSmallSortFreezeTypeImpl: Sized + FreezeMarker {
     fn small_sort_threshold() -> usize;
 
-    fn small_sort<F: FnMut(&Self, &Self) -> bool>(v: &mut [Self], is_less: &mut F);
+    fn small_sort<F: [const] FnMut(&Self, &Self) -> bool + [const] Destruct>(
+        v: &mut [Self],
+        is_less: &mut F,
+    );
 }
 
-impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] FreezeMarker> const UnstableSmallSortFreezeTypeImpl for T {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         if (size_of::<T>() * SMALL_SORT_GENERAL_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE {
@@ -123,7 +141,8 @@ impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T {
     #[inline(always)]
     default fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: FnMut(&T, &T) -> bool,
+        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+        T: [const] Destruct,
     {
         if (size_of::<T>() * SMALL_SORT_GENERAL_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE {
             small_sort_general(v, is_less);
@@ -135,11 +154,15 @@ impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T {
 
 /// SAFETY: Only used for run-time optimization heuristic.
 #[rustc_unsafe_specialization_marker]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 trait CopyMarker {}
 
-impl<T: Copy> CopyMarker for T {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Copy> const CopyMarker for T {}
 
-impl<T: FreezeMarker + CopyMarker> UnstableSmallSortFreezeTypeImpl for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] FreezeMarker + [const] CopyMarker> const UnstableSmallSortFreezeTypeImpl for T {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         if has_efficient_in_place_swap::<T>()
@@ -156,7 +179,8 @@ impl<T: FreezeMarker + CopyMarker> UnstableSmallSortFreezeTypeImpl for T {
     #[inline(always)]
     fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: FnMut(&T, &T) -> bool,
+        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+        Self: [const] Destruct,
     {
         if has_efficient_in_place_swap::<T>()
             && (size_of::<T>() * SMALL_SORT_NETWORK_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE
@@ -196,13 +220,24 @@ const SMALL_SORT_NETWORK_SCRATCH_LEN: usize = SMALL_SORT_NETWORK_THRESHOLD;
 /// within this limit.
 const MAX_STACK_ARRAY_SIZE: usize = 4096;
 
-fn small_sort_fallback<T, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn small_sort_fallback<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    is_less: &mut F,
+) {
     if v.len() >= 2 {
         insertion_sort_shift_left(v, 1, is_less);
     }
 }
 
-fn small_sort_general<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn small_sort_general<
+    T: [const] FreezeMarker + [const] Destruct,
+    F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+>(
+    v: &mut [T],
+    is_less: &mut F,
+) {
     let mut stack_array = MaybeUninit::<[T; SMALL_SORT_GENERAL_SCRATCH_LEN]>::uninit();
 
     // SAFETY: The memory is backed by `stack_array`, and the operation is safe as long as the len
@@ -217,7 +252,11 @@ fn small_sort_general<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(v: &mut [T], is
     small_sort_general_with_scratch(v, scratch, is_less);
 }
 
-fn small_sort_general_with_scratch<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn small_sort_general_with_scratch<
+    T: FreezeMarker + [const] Destruct,
+    F: [const] FnMut(&T, &T) -> bool,
+>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     is_less: &mut F,
@@ -298,7 +337,8 @@ struct CopyOnDrop<T> {
     len: usize,
 }
 
-impl<T> Drop for CopyOnDrop<T> {
+#[rustc_const_unstable(feature = "const_destruct", issue = "133214")]
+impl<T> const Drop for CopyOnDrop<T> {
     fn drop(&mut self) {
         // SAFETY: `src` must contain `len` initialized elements, and dst must
         // be valid to write `len` elements.
@@ -308,10 +348,11 @@ impl<T> Drop for CopyOnDrop<T> {
     }
 }
 
-fn small_sort_network<T, F>(v: &mut [T], is_less: &mut F)
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn small_sort_network<T, F>(v: &mut [T], is_less: &mut F)
 where
-    T: FreezeMarker,
-    F: FnMut(&T, &T) -> bool,
+    T: [const] FreezeMarker + [const] Destruct,
+    F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
 {
     // This implementation is tuned to be efficient for integer types.
 
@@ -383,9 +424,10 @@ where
 /// types. `is_less` could be a huge function and we want to give the compiler an option to
 /// not inline this function. For the same reasons that this function is very perf critical
 /// it should be in the same module as the functions that use it.
-unsafe fn swap_if_less<T, F>(v_base: *mut T, a_pos: usize, b_pos: usize, is_less: &mut F)
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn swap_if_less<T, F>(v_base: *mut T, a_pos: usize, b_pos: usize, is_less: &mut F)
 where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool,
 {
     // SAFETY: the caller must guarantee that `a_pos` and `b_pos` each added to `v_base` yield valid
     // pointers into `v_base`, and are properly aligned, and part of the same allocation.
@@ -423,9 +465,10 @@ where
 /// `swap_if_less`. If the code of a sort impl changes so as to call this function in multiple
 /// places, `#[inline(never)]` is recommended to keep binary-size in check. The current design of
 /// `small_sort_network` makes sure to only call this once.
-fn sort9_optimal<T, F>(v: &mut [T], is_less: &mut F)
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn sort9_optimal<T, F>(v: &mut [T], is_less: &mut F)
 where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool,
 {
     if v.len() < 9 {
         intrinsics::abort();
@@ -472,9 +515,10 @@ where
 /// `swap_if_less`. If the code of a sort impl changes so as to call this function in multiple
 /// places, `#[inline(never)]` is recommended to keep binary-size in check. The current design of
 /// `small_sort_network` makes sure to only call this once.
-fn sort13_optimal<T, F>(v: &mut [T], is_less: &mut F)
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn sort13_optimal<T, F>(v: &mut [T], is_less: &mut F)
 where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool,
 {
     if v.len() < 13 {
         intrinsics::abort();
@@ -539,7 +583,12 @@ where
 ///
 /// # Safety
 /// begin < tail and p must be valid and initialized for all begin <= p <= tail.
-unsafe fn insert_tail<T, F: FnMut(&T, &T) -> bool>(begin: *mut T, tail: *mut T, is_less: &mut F) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn insert_tail<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+    begin: *mut T,
+    tail: *mut T,
+    is_less: &mut F,
+) {
     // SAFETY: see individual comments.
     unsafe {
         // SAFETY: in-bounds as tail > begin.
@@ -577,7 +626,8 @@ unsafe fn insert_tail<T, F: FnMut(&T, &T) -> bool>(begin: *mut T, tail: *mut T, 
 }
 
 /// Sort `v` assuming `v[..offset]` is already sorted.
-pub fn insertion_sort_shift_left<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn insertion_sort_shift_left<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     offset: usize,
     is_less: &mut F,
@@ -609,7 +659,8 @@ pub fn insertion_sort_shift_left<T, F: FnMut(&T, &T) -> bool>(
 
 /// SAFETY: The caller MUST guarantee that `v_base` is valid for 4 reads and
 /// `dst` is valid for 4 writes. The result will be stored in `dst[0..4]`.
-pub unsafe fn sort4_stable<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const unsafe fn sort4_stable<T, F: [const] FnMut(&T, &T) -> bool>(
     v_base: *const T,
     dst: *mut T,
     is_less: &mut F,
@@ -660,7 +711,8 @@ pub unsafe fn sort4_stable<T, F: FnMut(&T, &T) -> bool>(
 /// SAFETY: The caller MUST guarantee that `v_base` is valid for 8 reads and
 /// writes, `scratch_base` and `dst` MUST be valid for 8 writes. The result will
 /// be stored in `dst[0..8]`.
-unsafe fn sort8_stable<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn sort8_stable<T: FreezeMarker, F: [const] FnMut(&T, &T) -> bool>(
     v_base: *mut T,
     dst: *mut T,
     scratch_base: *mut T,
@@ -680,7 +732,8 @@ unsafe fn sort8_stable<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
 }
 
 #[inline(always)]
-unsafe fn merge_up<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn merge_up<T, F: [const] FnMut(&T, &T) -> bool>(
     mut left_src: *const T,
     mut right_src: *const T,
     mut dst: *mut T,
@@ -713,7 +766,8 @@ unsafe fn merge_up<T, F: FnMut(&T, &T) -> bool>(
 }
 
 #[inline(always)]
-unsafe fn merge_down<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn merge_down<T, F: [const] FnMut(&T, &T) -> bool>(
     mut left_src: *const T,
     mut right_src: *const T,
     mut dst: *mut T,
@@ -757,7 +811,8 @@ unsafe fn merge_down<T, F: FnMut(&T, &T) -> bool>(
 ///
 /// Note that T must be Freeze, the comparison function is evaluated on outdated
 /// temporary 'copies' that may not end up in the final array.
-unsafe fn bidirectional_merge<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn bidirectional_merge<T: FreezeMarker, F: [const] FnMut(&T, &T) -> bool>(
     v: &[T],
     dst: *mut T,
     is_less: &mut F,
@@ -842,7 +897,7 @@ unsafe fn bidirectional_merge<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
 
 #[cfg_attr(not(panic = "immediate-abort"), inline(never), cold)]
 #[cfg_attr(panic = "immediate-abort", inline)]
-fn panic_on_ord_violation() -> ! {
+const fn panic_on_ord_violation() -> ! {
     // This is indicative of a logic bug in the user-provided comparison function or Ord
     // implementation. They are expected to implement a total order as explained in the Ord
     // documentation.

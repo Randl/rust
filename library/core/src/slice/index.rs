@@ -1,6 +1,7 @@
 //! Indexing implementations for `[T]`.
 
 use crate::intrinsics::slice_get_unchecked;
+use crate::marker::Destruct;
 use crate::panic::const_panic;
 use crate::ub_checks::assert_unsafe_precondition;
 use crate::{ops, range};
@@ -899,9 +900,10 @@ unsafe impl<T> const SliceIndex<[T]> for range::RangeToInclusive<usize> {
 #[track_caller]
 #[unstable(feature = "slice_range", issue = "76393")]
 #[must_use]
-pub fn range<R>(range: R, bounds: ops::RangeTo<usize>) -> ops::Range<usize>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn range<R>(range: R, bounds: ops::RangeTo<usize>) -> ops::Range<usize>
 where
-    R: ops::RangeBounds<usize>,
+    R: [const] ops::RangeBounds<usize> + [const] Destruct,
 {
     let len = bounds.end;
 
@@ -984,7 +986,7 @@ where
 
 /// Converts a pair of `ops::Bound`s into `ops::Range` without performing any
 /// bounds checking or (in debug) overflow checking.
-pub(crate) fn into_range_unchecked(
+pub(crate) const fn into_range_unchecked(
     len: usize,
     (start, end): (ops::Bound<usize>, ops::Bound<usize>),
 ) -> ops::Range<usize> {
@@ -1004,7 +1006,8 @@ pub(crate) fn into_range_unchecked(
 
 /// Converts pair of `ops::Bound`s into `ops::Range`.
 /// Returns `None` on overflowing indices.
-pub(crate) fn into_range(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const fn into_range(
     len: usize,
     (start, end): (ops::Bound<usize>, ops::Bound<usize>),
 ) -> Option<ops::Range<usize>> {
@@ -1029,7 +1032,8 @@ pub(crate) fn into_range(
 
 /// Converts pair of `ops::Bound`s into `ops::Range`.
 /// Panics on overflowing indices.
-pub(crate) fn into_slice_range(
+#[rustc_const_unstable(feature = "const_ops", issue = "143802")]
+pub(crate) const fn into_slice_range(
     len: usize,
     (start, end): (ops::Bound<usize>, ops::Bound<usize>),
 ) -> ops::Range<usize> {
@@ -1059,7 +1063,8 @@ pub(crate) fn into_slice_range(
 }
 
 #[stable(feature = "slice_index_with_ops_bound_pair", since = "1.53.0")]
-unsafe impl<T> SliceIndex<[T]> for (ops::Bound<usize>, ops::Bound<usize>) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<T> const SliceIndex<[T]> for (ops::Bound<usize>, ops::Bound<usize>) {
     type Output = [T];
 
     #[inline]

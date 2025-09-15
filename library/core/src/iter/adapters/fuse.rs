@@ -4,6 +4,7 @@ use crate::iter::adapters::zip::try_get_unchecked;
 use crate::iter::{
     FusedIterator, TrustedFused, TrustedLen, TrustedRandomAccess, TrustedRandomAccessNoCoerce,
 };
+use crate::marker::Destruct;
 use crate::ops::Try;
 
 /// An iterator that yields `None` forever after the underlying iterator
@@ -11,9 +12,11 @@ use crate::ops::Try;
 ///
 /// This `struct` is created by [`Iterator::fuse`]. See its documentation
 /// for more.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+#[derive_const(Clone)]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 #[stable(feature = "rust1", since = "1.0.0")]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub struct Fuse<I> {
     // NOTE: for `I: FusedIterator`, we never bother setting `None`, but
     // we still have to be prepared for that state due to variance.
@@ -21,17 +24,28 @@ pub struct Fuse<I> {
     iter: Option<I>,
 }
 impl<I> Fuse<I> {
-    pub(in crate::iter) fn new(iter: I) -> Fuse<I> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I) -> Fuse<I> {
         Fuse { iter: Some(iter) }
     }
 
-    pub(crate) fn into_inner(self) -> Option<I> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn into_inner(self) -> Option<I>
+    where
+        I: [const] Destruct,
+    {
         self.iter
     }
 }
 
 #[stable(feature = "fused", since = "1.26.0")]
-impl<I> FusedIterator for Fuse<I> where I: Iterator {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const FusedIterator for Fuse<I>
+where
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
+{
+}
 
 #[unstable(issue = "none", feature = "trusted_fused")]
 unsafe impl<I> TrustedFused for Fuse<I> where I: TrustedFused {}
@@ -39,9 +53,11 @@ unsafe impl<I> TrustedFused for Fuse<I> where I: TrustedFused {}
 // Any specialized implementation here is made internal
 // to avoid exposing default fns outside this trait.
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> Iterator for Fuse<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const Iterator for Fuse<I>
 where
-    I: Iterator,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = <I as Iterator>::Item;
 
@@ -83,8 +99,8 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         FuseImpl::try_fold(self, acc, fold)
     }
@@ -92,7 +108,8 @@ where
     #[inline]
     fn fold<Acc, Fold>(self, mut acc: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         if let Some(iter) = self.iter {
             acc = iter.fold(acc, fold);
@@ -103,7 +120,7 @@ where
     #[inline]
     fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
     {
         FuseImpl::find(self, predicate)
     }
@@ -123,10 +140,12 @@ where
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> DoubleEndedIterator for Fuse<I>
+impl<I> const DoubleEndedIterator for Fuse<I>
 where
-    I: DoubleEndedIterator,
+    I: [const] DoubleEndedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<<I as Iterator>::Item> {
@@ -142,8 +161,8 @@ where
     fn try_rfold<Acc, Fold, R>(&mut self, acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         FuseImpl::try_rfold(self, acc, fold)
     }
@@ -151,7 +170,8 @@ where
     #[inline]
     fn rfold<Acc, Fold>(self, mut acc: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         if let Some(iter) = self.iter {
             acc = iter.rfold(acc, fold);
@@ -162,16 +182,18 @@ where
     #[inline]
     fn rfind<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
     {
         FuseImpl::rfind(self, predicate)
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> ExactSizeIterator for Fuse<I>
+impl<I> const ExactSizeIterator for Fuse<I>
 where
-    I: ExactSizeIterator,
+    I: [const] ExactSizeIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     fn len(&self) -> usize {
         match self.iter {
@@ -188,8 +210,9 @@ where
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "default_iters", since = "1.70.0")]
-impl<I: Default> Default for Fuse<I> {
+impl<I: [const] Default> const Default for Fuse<I> {
     /// Creates a `Fuse` iterator from the default value of `I`.
     ///
     /// ```
@@ -253,6 +276,9 @@ where
 ///
 /// We only need to worry about `&mut self` methods, which
 /// may exhaust the iterator without consuming it.
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+#[const_trait]
 #[doc(hidden)]
 trait FuseImpl<I> {
     type Item;
@@ -263,36 +289,40 @@ trait FuseImpl<I> {
     fn try_fold<Acc, Fold, R>(&mut self, acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>;
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>;
     fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool;
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
+        I: [const] Destruct;
 
     // Functions specific to DoubleEndedIterators
     fn next_back(&mut self) -> Option<Self::Item>
     where
-        I: DoubleEndedIterator;
+        I: [const] DoubleEndedIterator;
     fn nth_back(&mut self, n: usize) -> Option<Self::Item>
     where
-        I: DoubleEndedIterator;
+        I: [const] DoubleEndedIterator;
     fn try_rfold<Acc, Fold, R>(&mut self, acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
-        I: DoubleEndedIterator;
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
+        I: [const] DoubleEndedIterator,
+        I::Item: [const] Destruct;
     fn rfind<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
-        I: DoubleEndedIterator;
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
+        I: [const] DoubleEndedIterator;
 }
 
 /// General `Fuse` impl which sets `iter = None` when exhausted.
 #[doc(hidden)]
-impl<I> FuseImpl<I> for Fuse<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const FuseImpl<I> for Fuse<I>
 where
-    I: Iterator,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = <I as Iterator>::Item;
 
@@ -310,8 +340,8 @@ where
     default fn try_fold<Acc, Fold, R>(&mut self, mut acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         if let Some(ref mut iter) = self.iter {
             acc = iter.try_fold(acc, fold)?;
@@ -348,9 +378,10 @@ where
     default fn try_rfold<Acc, Fold, R>(&mut self, mut acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
-        I: DoubleEndedIterator,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
+        I: [const] DoubleEndedIterator,
+        I::Item: [const] Destruct,
     {
         if let Some(ref mut iter) = self.iter {
             acc = iter.try_rfold(acc, fold)?;
@@ -362,7 +393,7 @@ where
     #[inline]
     default fn rfind<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
+        P: [const] FnMut(&Self::Item) -> bool,
         I: DoubleEndedIterator,
     {
         and_then_or_clear(&mut self.iter, |iter| iter.rfind(predicate))
@@ -372,9 +403,11 @@ where
 /// Specialized `Fuse` impl which doesn't bother clearing `iter` when exhausted.
 /// However, we must still be prepared for the possibility that it was already cleared!
 #[doc(hidden)]
-impl<I> FuseImpl<I> for Fuse<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const FuseImpl<I> for Fuse<I>
 where
-    I: FusedIterator,
+    I: [const] FusedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next(&mut self) -> Option<<I as Iterator>::Item> {
@@ -390,8 +423,8 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, mut acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         if let Some(ref mut iter) = self.iter {
             acc = iter.try_fold(acc, fold)?;
@@ -402,7 +435,8 @@ where
     #[inline]
     fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
+        I: [const] Destruct,
     {
         self.iter.as_mut()?.find(predicate)
     }
@@ -410,7 +444,7 @@ where
     #[inline]
     fn next_back(&mut self) -> Option<<I as Iterator>::Item>
     where
-        I: DoubleEndedIterator,
+        I: [const] DoubleEndedIterator,
     {
         self.iter.as_mut()?.next_back()
     }
@@ -418,7 +452,7 @@ where
     #[inline]
     fn nth_back(&mut self, n: usize) -> Option<<I as Iterator>::Item>
     where
-        I: DoubleEndedIterator,
+        I: [const] DoubleEndedIterator,
     {
         self.iter.as_mut()?.nth_back(n)
     }
@@ -427,9 +461,9 @@ where
     fn try_rfold<Acc, Fold, R>(&mut self, mut acc: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
-        I: DoubleEndedIterator,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
+        I: [const] DoubleEndedIterator,
     {
         if let Some(ref mut iter) = self.iter {
             acc = iter.try_rfold(acc, fold)?;
@@ -440,8 +474,8 @@ where
     #[inline]
     fn rfind<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
-        I: DoubleEndedIterator,
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
+        I: [const] DoubleEndedIterator,
     {
         self.iter.as_mut()?.rfind(predicate)
     }
@@ -465,7 +499,14 @@ where
 }
 
 #[inline]
-fn and_then_or_clear<T, U>(opt: &mut Option<T>, f: impl FnOnce(&mut T) -> Option<U>) -> Option<U> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn and_then_or_clear<T, U>(
+    opt: &mut Option<T>,
+    f: impl [const] FnOnce(&mut T) -> Option<U> + [const] Destruct,
+) -> Option<U>
+where
+    T: [const] Destruct,
+{
     let x = f(opt.as_mut()?);
     if x.is_none() {
         *opt = None;

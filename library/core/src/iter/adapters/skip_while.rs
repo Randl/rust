@@ -1,6 +1,7 @@
 use crate::fmt;
 use crate::iter::adapters::SourceIter;
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -21,7 +22,8 @@ pub struct SkipWhile<I, P> {
 }
 
 impl<I, P> SkipWhile<I, P> {
-    pub(in crate::iter) fn new(iter: I, predicate: P) -> SkipWhile<I, P> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, predicate: P) -> SkipWhile<I, P> {
         SkipWhile { iter, flag: false, predicate }
     }
 }
@@ -33,19 +35,21 @@ impl<I: fmt::Debug, P> fmt::Debug for SkipWhile<I, P> {
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I: Iterator, P> Iterator for SkipWhile<I, P>
+impl<I: [const] Iterator + [const] Destruct, P: [const] Destruct> const Iterator for SkipWhile<I, P>
 where
     P: FnMut(&I::Item) -> bool,
+    I::Item: [const] Destruct,
 {
     type Item = I::Item;
 
     #[inline]
     fn next(&mut self) -> Option<I::Item> {
-        fn check<'a, T>(
+        const fn check<'a, T>(
             flag: &'a mut bool,
             pred: &'a mut impl FnMut(&T) -> bool,
-        ) -> impl FnMut(&T) -> bool + 'a {
+        ) -> impl [const] FnMut(&T) -> bool + 'a + [const] Destruct {
             move |x| {
                 if *flag || !pred(x) {
                     *flag = true;
@@ -71,8 +75,8 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, mut init: Acc, mut fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         if !self.flag {
             match self.next() {
@@ -86,7 +90,8 @@ where
     #[inline]
     fn fold<Acc, Fold>(mut self, mut init: Acc, mut fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         if !self.flag {
             match self.next() {

@@ -3,6 +3,7 @@ use core::num::NonZero;
 use crate::iter::adapters::zip::try_get_unchecked;
 use crate::iter::adapters::{SourceIter, TrustedRandomAccess, TrustedRandomAccessNoCoerce};
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedLen, UncheckedIterator};
+use crate::marker::Destruct;
 use crate::ops::Try;
 
 /// An iterator that clones the elements of an underlying iterator.
@@ -20,20 +21,23 @@ pub struct Cloned<I> {
 }
 
 impl<I> Cloned<I> {
-    pub(in crate::iter) fn new(it: I) -> Cloned<I> {
+    pub(in crate::iter) const fn new(it: I) -> Cloned<I> {
         Cloned { it }
     }
 }
 
-fn clone_try_fold<T: Clone, Acc, R>(mut f: impl FnMut(Acc, T) -> R) -> impl FnMut(Acc, &T) -> R {
+const fn clone_try_fold<T: Clone, Acc, R>(
+    mut f: impl [const] FnMut(Acc, T) -> R,
+) -> impl [const] FnMut(Acc, &T) -> R + [const] Destruct {
     move |acc, elt| f(acc, elt.clone())
 }
 
 #[stable(feature = "iter_cloned", since = "1.1.0")]
-impl<'a, I, T: 'a> Iterator for Cloned<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, I, T: 'a> const Iterator for Cloned<I>
 where
-    I: Iterator<Item = &'a T>,
-    T: Clone,
+    I: [const] Iterator<Item = &'a T> + [const] Destruct,
+    T: [const] Clone + [const] Destruct,
 {
     type Item = T;
 
@@ -48,15 +52,16 @@ where
     fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         self.it.try_fold(init, clone_try_fold(f))
     }
 
     fn fold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.it.map(T::clone).fold(init, f)
     }
@@ -72,10 +77,11 @@ where
 }
 
 #[stable(feature = "iter_cloned", since = "1.1.0")]
-impl<'a, I, T: 'a> DoubleEndedIterator for Cloned<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, I, T: 'a> const DoubleEndedIterator for Cloned<I>
 where
-    I: DoubleEndedIterator<Item = &'a T>,
-    T: Clone,
+    I: [const] DoubleEndedIterator<Item = &'a T> + [const] Destruct,
+    T: [const] Clone + [const] Destruct,
 {
     fn next_back(&mut self) -> Option<T> {
         self.it.next_back().cloned()
@@ -84,25 +90,27 @@ where
     fn try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R,
+        R: [const] Try<Output = B>,
     {
         self.it.try_rfold(init, clone_try_fold(f))
     }
 
     fn rfold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.it.map(T::clone).rfold(init, f)
     }
 }
 
 #[stable(feature = "iter_cloned", since = "1.1.0")]
-impl<'a, I, T: 'a> ExactSizeIterator for Cloned<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, I, T: 'a> const ExactSizeIterator for Cloned<I>
 where
-    I: ExactSizeIterator<Item = &'a T>,
-    T: Clone,
+    I: [const] ExactSizeIterator<Item = &'a T> + [const] Destruct,
+    T: [const] Clone + [const] Destruct,
 {
     fn len(&self) -> usize {
         self.it.len()
@@ -127,25 +135,28 @@ unsafe impl<I> TrustedRandomAccess for Cloned<I> where I: TrustedRandomAccess {}
 
 #[doc(hidden)]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccessNoCoerce for Cloned<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I> const TrustedRandomAccessNoCoerce for Cloned<I>
 where
-    I: TrustedRandomAccessNoCoerce,
+    I: [const] TrustedRandomAccessNoCoerce,
 {
     const MAY_HAVE_SIDE_EFFECT: bool = true;
 }
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<'a, I, T: 'a> TrustedLen for Cloned<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<'a, I, T: 'a> const TrustedLen for Cloned<I>
 where
-    I: TrustedLen<Item = &'a T>,
-    T: Clone,
+    I: [const] TrustedLen<Item = &'a T> + [const] Destruct,
+    T: [const] Clone + [const] Destruct,
 {
 }
 
-impl<'a, I, T: 'a> UncheckedIterator for Cloned<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, I, T: 'a> const UncheckedIterator for Cloned<I>
 where
-    I: UncheckedIterator<Item = &'a T>,
-    T: Clone,
+    I: [const] UncheckedIterator<Item = &'a T> + [const] Destruct,
+    T: [const] Clone + [const] Destruct,
 {
     unsafe fn next_unchecked(&mut self) -> T {
         // SAFETY: `Cloned` is 1:1 with the inner iterator, so if the caller promised

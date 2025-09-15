@@ -1,5 +1,5 @@
+use crate::marker::Destruct;
 use crate::{convert, ops};
-
 /// Used to tell an operation whether it should exit early or go on as usual.
 ///
 /// This is used when exposing things (like graph traversals or visitors) where
@@ -83,8 +83,8 @@ use crate::{convert, ops};
 #[must_use]
 // ControlFlow should not implement PartialOrd or Ord, per RFC 3058:
 // https://rust-lang.github.io/rfcs/3058-try-trait-v2.html#traits-for-controlflow
-#[derive(Copy, Debug, Hash)]
-#[derive_const(Clone, PartialEq, Eq)]
+#[derive(Debug, Hash)]
+#[derive_const(Clone, Copy, PartialEq, Eq)]
 pub enum ControlFlow<B, C = ()> {
     /// Move on to the next phase of the operation as normal.
     #[stable(feature = "control_flow_enum_type", since = "1.55.0")]
@@ -132,8 +132,9 @@ impl<B, C> const ops::FromResidual<ControlFlow<B, convert::Infallible>> for Cont
     }
 }
 
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 #[unstable(feature = "try_trait_v2_residual", issue = "91285")]
-impl<B, C> ops::Residual<C> for ControlFlow<B, convert::Infallible> {
+impl<B, C> const ops::Residual<C> for ControlFlow<B, convert::Infallible> {
     type TryType = ControlFlow<B, C>;
 }
 
@@ -149,8 +150,9 @@ impl<B, C> ControlFlow<B, C> {
     /// assert!(!ControlFlow::<&str, i32>::Continue(3).is_break());
     /// ```
     #[inline]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     #[stable(feature = "control_flow_enum_is", since = "1.59.0")]
-    pub fn is_break(&self) -> bool {
+    pub const fn is_break(&self) -> bool {
         matches!(*self, ControlFlow::Break(_))
     }
 
@@ -166,7 +168,8 @@ impl<B, C> ControlFlow<B, C> {
     /// ```
     #[inline]
     #[stable(feature = "control_flow_enum_is", since = "1.59.0")]
-    pub fn is_continue(&self) -> bool {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn is_continue(&self) -> bool {
         matches!(*self, ControlFlow::Continue(_))
     }
 
@@ -183,7 +186,12 @@ impl<B, C> ControlFlow<B, C> {
     /// ```
     #[inline]
     #[stable(feature = "control_flow_enum", since = "1.83.0")]
-    pub fn break_value(self) -> Option<B> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn break_value(self) -> Option<B>
+    where
+        B: [const] Destruct,
+        C: [const] Destruct,
+    {
         match self {
             ControlFlow::Continue(..) => None,
             ControlFlow::Break(x) => Some(x),
@@ -267,8 +275,12 @@ impl<B, C> ControlFlow<B, C> {
     /// Maps `ControlFlow<B, C>` to `ControlFlow<T, C>` by applying a function
     /// to the break value in case it exists.
     #[inline]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     #[stable(feature = "control_flow_enum", since = "1.83.0")]
-    pub fn map_break<T>(self, f: impl FnOnce(B) -> T) -> ControlFlow<T, C> {
+    pub const fn map_break<T>(
+        self,
+        f: impl [const] FnOnce(B) -> T + [const] Destruct,
+    ) -> ControlFlow<T, C> {
         match self {
             ControlFlow::Continue(x) => ControlFlow::Continue(x),
             ControlFlow::Break(x) => ControlFlow::Break(f(x)),
@@ -287,8 +299,13 @@ impl<B, C> ControlFlow<B, C> {
     /// assert_eq!(ControlFlow::<&str, i32>::Continue(3).continue_value(), Some(3));
     /// ```
     #[inline]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     #[stable(feature = "control_flow_enum", since = "1.83.0")]
-    pub fn continue_value(self) -> Option<C> {
+    pub const fn continue_value(self) -> Option<C>
+    where
+        B: [const] Destruct,
+        C: [const] Destruct,
+    {
         match self {
             ControlFlow::Continue(x) => Some(x),
             ControlFlow::Break(..) => None,
@@ -371,8 +388,12 @@ impl<B, C> ControlFlow<B, C> {
     /// Maps `ControlFlow<B, C>` to `ControlFlow<B, T>` by applying a function
     /// to the continue value in case it exists.
     #[inline]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     #[stable(feature = "control_flow_enum", since = "1.83.0")]
-    pub fn map_continue<T>(self, f: impl FnOnce(C) -> T) -> ControlFlow<B, T> {
+    pub const fn map_continue<T>(
+        self,
+        f: impl [const] FnOnce(C) -> T + [const] Destruct,
+    ) -> ControlFlow<B, T> {
         match self {
             ControlFlow::Continue(x) => ControlFlow::Continue(f(x)),
             ControlFlow::Break(x) => ControlFlow::Break(x),
@@ -407,7 +428,11 @@ impl<T> ControlFlow<T, T> {
 impl<R: ops::Try> ControlFlow<R, R::Output> {
     /// Creates a `ControlFlow` from any type implementing `Try`.
     #[inline]
-    pub(crate) fn from_try(r: R) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn from_try(r: R) -> Self
+    where
+        R: [const] ops::Try,
+    {
         match R::branch(r) {
             ControlFlow::Continue(v) => ControlFlow::Continue(v),
             ControlFlow::Break(v) => ControlFlow::Break(R::from_residual(v)),
@@ -416,7 +441,11 @@ impl<R: ops::Try> ControlFlow<R, R::Output> {
 
     /// Converts a `ControlFlow` into any type implementing `Try`.
     #[inline]
-    pub(crate) fn into_try(self) -> R {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn into_try(self) -> R
+    where
+        R: [const] ops::Try,
+    {
         match self {
             ControlFlow::Continue(v) => R::from_output(v),
             ControlFlow::Break(v) => v,

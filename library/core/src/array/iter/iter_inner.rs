@@ -1,24 +1,31 @@
 //! Defines the `IntoIter` owned iterator for arrays.
 
+use crate::marker::Destruct;
 use crate::mem::MaybeUninit;
 use crate::num::NonZero;
 use crate::ops::{IndexRange, NeverShortCircuit, Try};
 use crate::{fmt, iter};
 
 #[allow(private_bounds)]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 trait PartialDrop {
     /// # Safety
     /// `self[alive]` are all initialized before the call,
     /// then are never used (without reinitializing them) after it.
     unsafe fn partial_drop(&mut self, alive: IndexRange);
 }
-impl<T> PartialDrop for [MaybeUninit<T>] {
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const PartialDrop for [MaybeUninit<T>] {
     unsafe fn partial_drop(&mut self, alive: IndexRange) {
         // SAFETY: We know that all elements within `alive` are properly initialized.
         unsafe { self.get_unchecked_mut(alive).assume_init_drop() }
     }
 }
-impl<T, const N: usize> PartialDrop for [MaybeUninit<T>; N] {
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const PartialDrop for [MaybeUninit<T>; N] {
     unsafe fn partial_drop(&mut self, alive: IndexRange) {
         let slice: &mut [MaybeUninit<T>] = self;
         // SAFETY: Initialized elements in the array are also initialized in the slice.
@@ -70,9 +77,10 @@ where
 }
 
 #[allow(private_bounds)]
-impl<DATA: ?Sized> Drop for PolymorphicIter<DATA>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<DATA: ?Sized> const Drop for PolymorphicIter<DATA>
 where
-    DATA: PartialDrop,
+    DATA: [const] PartialDrop,
 {
     #[inline]
     fn drop(&mut self) {
@@ -96,14 +104,16 @@ impl<T, const N: usize> PolymorphicIter<[MaybeUninit<T>; N]> {
     }
 }
 
-impl<T: Clone, const N: usize> Clone for PolymorphicIter<[MaybeUninit<T>; N]> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Clone, const N: usize> const Clone for PolymorphicIter<[MaybeUninit<T>; N]> {
     #[inline]
     fn clone(&self) -> Self {
         // Note, we don't really need to match the exact same alive range, so
         // we can just clone into offset 0 regardless of where `self` is.
         let mut new = Self::empty();
 
-        fn clone_into_new<U: Clone>(
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        const fn clone_into_new<U: [const] Clone>(
             source: &PolymorphicIter<[MaybeUninit<U>]>,
             target: &mut PolymorphicIter<[MaybeUninit<U>]>,
         ) {
@@ -125,7 +135,8 @@ impl<T: Clone, const N: usize> Clone for PolymorphicIter<[MaybeUninit<T>; N]> {
 
 impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     #[inline]
-    pub(super) fn as_slice(&self) -> &[T] {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(super) const fn as_slice(&self) -> &[T] {
         // SAFETY: We know that all elements within `alive` are properly initialized.
         unsafe {
             let slice = self.data.get_unchecked(self.alive.clone());
@@ -134,7 +145,8 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     }
 
     #[inline]
-    pub(super) fn as_mut_slice(&mut self) -> &mut [T] {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(super) const fn as_mut_slice(&mut self) -> &mut [T] {
         // SAFETY: We know that all elements within `alive` are properly initialized.
         unsafe {
             let slice = self.data.get_unchecked_mut(self.alive.clone());
@@ -158,7 +170,7 @@ impl<T: fmt::Debug> fmt::Debug for PolymorphicIter<[MaybeUninit<T>]> {
 /// things like `try_fold` that require `Self: Sized` (which we're not).
 impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     #[inline]
-    pub(super) fn next(&mut self) -> Option<T> {
+    pub(super) const fn next(&mut self) -> Option<T> {
         // Get the next index from the front.
         //
         // Increasing `alive.start` by 1 maintains the invariant regarding
@@ -176,13 +188,14 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     }
 
     #[inline]
-    pub(super) fn size_hint(&self) -> (usize, Option<usize>) {
+    pub(super) const fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.len();
         (len, Some(len))
     }
 
     #[inline]
-    pub(super) fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(super) const fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         // This also moves the start, which marks them as conceptually "dropped",
         // so if anything goes bad then our drop impl won't double-free them.
         let range_to_drop = self.alive.take_prefix(n);
@@ -198,15 +211,19 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     }
 
     #[inline]
-    pub(super) fn fold<B>(&mut self, init: B, f: impl FnMut(B, T) -> B) -> B {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(super) const fn fold<B>(&mut self, init: B, f: impl [const] FnMut(B, T) -> B) -> B
+    where
+        B: [const] Destruct,
+    {
         self.try_fold(init, NeverShortCircuit::wrap_mut_2(f)).0
     }
 
     #[inline]
-    pub(super) fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    pub(super) const fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         F: FnMut(B, T) -> R,
-        R: Try<Output = B>,
+        R: [const] Try<Output = B>,
     {
         // `alive` is an `IndexRange`, not an arbitrary iterator, so we can
         // trust that its `try_fold` isn't going to do something weird like
@@ -222,7 +239,7 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     }
 
     #[inline]
-    pub(super) fn next_back(&mut self) -> Option<T> {
+    pub(super) const fn next_back(&mut self) -> Option<T> {
         // Get the next index from the back.
         //
         // Decreasing `alive.end` by 1 maintains the invariant regarding
@@ -240,7 +257,8 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     }
 
     #[inline]
-    pub(super) fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(super) const fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
         // This also moves the end, which marks them as conceptually "dropped",
         // so if anything goes bad then our drop impl won't double-free them.
         let range_to_drop = self.alive.take_suffix(n);
@@ -256,15 +274,19 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
     }
 
     #[inline]
-    pub(super) fn rfold<B>(&mut self, init: B, f: impl FnMut(B, T) -> B) -> B {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(super) const fn rfold<B>(&mut self, init: B, f: impl [const] FnMut(B, T) -> B) -> B
+    where
+        B: [const] Destruct,
+    {
         self.try_rfold(init, NeverShortCircuit::wrap_mut_2(f)).0
     }
 
     #[inline]
-    pub(super) fn try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    pub(super) const fn try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
     where
         F: FnMut(B, T) -> R,
-        R: Try<Output = B>,
+        R: [const] Try<Output = B>,
     {
         // `alive` is an `IndexRange`, not an arbitrary iterator, so we can
         // trust that its `try_rfold` isn't going to do something weird like

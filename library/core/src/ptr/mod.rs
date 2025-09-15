@@ -2104,7 +2104,8 @@ pub const unsafe fn write_unaligned<T>(dst: *mut T, src: T) {
 #[stable(feature = "volatile", since = "1.9.0")]
 #[track_caller]
 #[rustc_diagnostic_item = "ptr_read_volatile"]
-pub unsafe fn read_volatile<T>(src: *const T) -> T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const unsafe fn read_volatile<T>(src: *const T) -> T {
     // SAFETY: the caller must uphold the safety contract for `volatile_load`.
     unsafe {
         ub_checks::assert_unsafe_precondition!(
@@ -2191,7 +2192,8 @@ pub unsafe fn read_volatile<T>(src: *const T) -> T {
 #[stable(feature = "volatile", since = "1.9.0")]
 #[rustc_diagnostic_item = "ptr_write_volatile"]
 #[track_caller]
-pub unsafe fn write_volatile<T>(dst: *mut T, src: T) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const unsafe fn write_volatile<T>(dst: *mut T, src: T) {
     // SAFETY: the caller must uphold the safety contract for `volatile_store`.
     unsafe {
         ub_checks::assert_unsafe_precondition!(
@@ -2224,7 +2226,8 @@ pub unsafe fn write_volatile<T>(dst: *mut T, src: T) {
 ///
 /// Any questions go to @nagisa.
 #[allow(ptr_to_integer_transmute_in_consts)]
-pub(crate) unsafe fn align_offset<T: Sized>(p: *const T, a: usize) -> usize {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const unsafe fn align_offset<T: Sized>(p: *const T, a: usize) -> usize {
     // FIXME(#75598): Direct use of these intrinsics improves codegen significantly at opt-level <=
     // 1, where the method versions of these operations are not inlined.
     use intrinsics::{
@@ -2241,6 +2244,7 @@ pub(crate) unsafe fn align_offset<T: Sized>(p: *const T, a: usize) -> usize {
     ///
     /// Implementation of this function shall not panic. Ever.
     #[inline]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     const unsafe fn mod_inv(x: usize, m: usize) -> usize {
         /// Multiplicative modular inverse table modulo 2⁴ = 16.
         ///
@@ -2556,24 +2560,28 @@ pub fn hash<T: PointeeSized, S: hash::Hasher>(hashee: *const T, into: &mut S) {
 }
 
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-impl<F: FnPtr> PartialEq for F {
+#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
+impl<F: [const] FnPtr> const PartialEq for F {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.addr() == other.addr()
     }
 }
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-impl<F: FnPtr> Eq for F {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<F: [const] FnPtr> const Eq for F {}
 
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-impl<F: FnPtr> PartialOrd for F {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<F: [const] FnPtr> const PartialOrd for F {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.addr().partial_cmp(&other.addr())
     }
 }
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-impl<F: FnPtr> Ord for F {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<F: [const] FnPtr> const Ord for F {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.addr().cmp(&other.addr())

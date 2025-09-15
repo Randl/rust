@@ -1,5 +1,6 @@
 use crate::iter::adapters::SourceIter;
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused};
+use crate::marker::Destruct;
 use crate::mem::{ManuallyDrop, MaybeUninit};
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
@@ -20,7 +21,8 @@ pub struct FilterMap<I, F> {
     f: F,
 }
 impl<I, F> FilterMap<I, F> {
-    pub(in crate::iter) fn new(iter: I, f: F) -> FilterMap<I, F> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: I, f: F) -> FilterMap<I, F> {
         FilterMap { iter, f }
     }
 }
@@ -32,20 +34,22 @@ impl<I: fmt::Debug, F> fmt::Debug for FilterMap<I, F> {
     }
 }
 
-fn filter_map_fold<T, B, Acc>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn filter_map_fold<T, B, Acc>(
     mut f: impl FnMut(T) -> Option<B>,
     mut fold: impl FnMut(Acc, B) -> Acc,
-) -> impl FnMut(Acc, T) -> Acc {
+) -> impl [const] FnMut(Acc, T) -> Acc + [const] Destruct {
     move |acc, item| match f(item) {
         Some(x) => fold(acc, x),
         None => acc,
     }
 }
 
-fn filter_map_try_fold<'a, T, B, Acc, R: Try<Output = Acc>>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn filter_map_try_fold<'a, T, B, Acc, R: Try<Output = Acc>>(
     f: &'a mut impl FnMut(T) -> Option<B>,
     mut fold: impl FnMut(Acc, B) -> R + 'a,
-) -> impl FnMut(Acc, T) -> R + 'a {
+) -> impl [const] FnMut(Acc, T) -> R + 'a + [const] Destruct {
     move |acc, item| match f(item) {
         Some(x) => fold(acc, x),
         None => try { acc },
@@ -53,9 +57,12 @@ fn filter_map_try_fold<'a, T, B, Acc, R: Try<Output = Acc>>(
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<B, I: Iterator, F> Iterator for FilterMap<I, F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<B, I: [const] Iterator + [const] Destruct, F> const Iterator for FilterMap<I, F>
 where
-    F: FnMut(I::Item) -> Option<B>,
+    F: [const] FnMut(I::Item) -> Option<B>,
+    I::Item: [const] Destruct,
+    B: [const] Destruct,
 {
     type Item = B;
 
@@ -75,7 +82,8 @@ where
             initialized: usize,
         }
 
-        impl<T> Drop for Guard<'_, T> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T> const Drop for Guard<'_, T> {
             #[inline]
             fn drop(&mut self) {
                 if const { crate::mem::needs_drop::<T>() } {
@@ -133,7 +141,7 @@ where
     where
         Self: Sized,
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_fold(init, filter_map_try_fold(&mut self.f, fold))
     }
@@ -141,7 +149,8 @@ where
     #[inline]
     fn fold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
-        Fold: FnMut(Acc, Self::Item) -> Acc,
+        Fold: [const] FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         self.iter.fold(init, filter_map_fold(self.f, fold))
     }

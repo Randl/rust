@@ -6,7 +6,8 @@ use crate::borrow::Cow;
 macro_rules! __impl_slice_eq1 {
     ([$($vars:tt)*] $lhs:ty, $rhs:ty $(where $ty:ty: $bound:ident)?, #[$stability:meta]) => {
         #[$stability]
-        impl<T, U, $($vars)*> PartialEq<$rhs> for $lhs
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T, U, $($vars)*> const PartialEq<$rhs> for $lhs
         where
             T: PartialEq<U>,
             $($ty: $bound)?

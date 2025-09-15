@@ -1,6 +1,7 @@
 //! This module contains the hybrid top-level loop combining bottom-up Mergesort with top-down
 //! Quicksort.
 
+use crate::marker::Destruct;
 use crate::mem::MaybeUninit;
 use crate::slice::sort::shared::find_existing_run;
 use crate::slice::sort::shared::smallsort::StableSmallSortTypeImpl;
@@ -17,7 +18,8 @@ use crate::{cmp, intrinsics};
 ///
 /// This is the main loop for driftsort, which uses powersort's heuristic to
 /// determine in which order to merge runs, see below for details.
-pub fn sort<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn sort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     eager_sort: bool,
@@ -153,7 +155,7 @@ pub fn sort<T, F: FnMut(&T, &T) -> bool>(
 // So as long as n < 2^62 we find that x < 2^64, meaning our operations do not
 // overflow.
 #[inline(always)]
-fn merge_tree_scale_factor(n: usize) -> u64 {
+const fn merge_tree_scale_factor(n: usize) -> u64 {
     if usize::BITS > u64::BITS {
         panic!("Platform not supported");
     }
@@ -164,13 +166,13 @@ fn merge_tree_scale_factor(n: usize) -> u64 {
 // Note: merge_tree_depth output is < 64 when left < right as f*x and f*y must
 // differ in some bit, and is <= 64 always.
 #[inline(always)]
-fn merge_tree_depth(left: usize, mid: usize, right: usize, scale_factor: u64) -> u8 {
+const fn merge_tree_depth(left: usize, mid: usize, right: usize, scale_factor: u64) -> u8 {
     let x = left as u64 + mid as u64;
     let y = mid as u64 + right as u64;
     ((scale_factor * x) ^ (scale_factor * y)).leading_zeros() as u8
 }
 
-fn sqrt_approx(n: usize) -> usize {
+const fn sqrt_approx(n: usize) -> usize {
     // Note that sqrt(n) = n^(1/2), and that 2^log2(n) = n. We combine these
     // two facts to approximate sqrt(n) as 2^(log2(n) / 2). Because our integer
     // log floors we want to add 0.5 to compensate for this on average, so our
@@ -188,7 +190,8 @@ fn sqrt_approx(n: usize) -> usize {
 
 // Lazy logical runs as in Glidesort.
 #[inline(always)]
-fn logical_merge<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn logical_merge<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     left: DriftsortRun,
@@ -223,7 +226,8 @@ fn logical_merge<T, F: FnMut(&T, &T) -> bool>(
 /// run. If not, the result depends on the value of `eager_sort`. If it is true,
 /// then a sorted run of length `T::SMALL_SORT_THRESHOLD` is returned, and if it
 /// is false an unsorted run of length `min_good_run_len` is returned.
-fn create_run<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn create_run<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     min_good_run_len: usize,
@@ -259,7 +263,8 @@ fn create_run<T, F: FnMut(&T, &T) -> bool>(
     }
 }
 
-fn stable_quicksort<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn stable_quicksort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     is_less: &mut F,
@@ -277,22 +282,22 @@ struct DriftsortRun(usize);
 
 impl DriftsortRun {
     #[inline(always)]
-    fn new_sorted(length: usize) -> Self {
+    const fn new_sorted(length: usize) -> Self {
         Self((length << 1) | 1)
     }
 
     #[inline(always)]
-    fn new_unsorted(length: usize) -> Self {
+    const fn new_unsorted(length: usize) -> Self {
         Self(length << 1)
     }
 
     #[inline(always)]
-    fn sorted(self) -> bool {
+    const fn sorted(self) -> bool {
         self.0 & 1 == 1
     }
 
     #[inline(always)]
-    fn len(self) -> usize {
+    const fn len(self) -> usize {
         self.0 >> 1
     }
 }

@@ -2,6 +2,7 @@
 
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 use crate::cmp;
+use crate::marker::Destruct;
 use crate::mem::{MaybeUninit, SizedTypeProperties};
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 use crate::slice::sort::shared::smallsort::{
@@ -26,7 +27,15 @@ pub(crate) mod tiny;
 /// Upholds all safety properties outlined here:
 /// <https://github.com/Voultapher/sort-research-rs/blob/main/writeup/sort_safety/text.md>
 #[inline(always)]
-pub fn sort<T, F: FnMut(&T, &T) -> bool, BufT: BufGuard<T>>(v: &mut [T], is_less: &mut F) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn sort<
+    T: [const] Destruct,
+    F: [const] FnMut(&T, &T) -> bool,
+    BufT: [const] BufGuard<T> + [const] Destruct,
+>(
+    v: &mut [T],
+    is_less: &mut F,
+) {
     // Arrays of zero-sized types are always all-equal, and thus sorted.
     if T::IS_ZST {
         return;
@@ -91,7 +100,15 @@ pub fn sort<T, F: FnMut(&T, &T) -> bool, BufT: BufGuard<T>>(v: &mut [T], is_less
 /// inlined insertion sort i-cache footprint remains minimal.
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 #[inline(never)]
-fn driftsort_main<T, F: FnMut(&T, &T) -> bool, BufT: BufGuard<T>>(v: &mut [T], is_less: &mut F) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn driftsort_main<
+    T: [const] Destruct,
+    F: [const] FnMut(&T, &T) -> bool,
+    BufT: [const] BufGuard<T> + [const] Destruct,
+>(
+    v: &mut [T],
+    is_less: &mut F,
+) {
     // By allocating n elements of memory we can ensure the entire input can
     // be sorted using stable quicksort, which allows better performance on
     // random and low-cardinality distributions. However, we still want to
@@ -138,6 +155,8 @@ fn driftsort_main<T, F: FnMut(&T, &T) -> bool, BufT: BufGuard<T>>(v: &mut [T], i
 #[doc(hidden)]
 /// Abstracts owned memory buffer, so that sort code can live in core where no allocation is
 /// possible. This trait can then be implemented in a place that has access to allocation.
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub trait BufGuard<T> {
     /// Creates new buffer that holds at least `capacity` memory.
     fn with_capacity(capacity: usize) -> Self;
@@ -152,11 +171,11 @@ struct AlignedStorage<T, const N: usize> {
 }
 
 impl<T, const N: usize> AlignedStorage<T, N> {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self { _align: [], storage: [const { MaybeUninit::uninit() }; N] }
     }
 
-    fn as_uninit_slice_mut(&mut self) -> &mut [MaybeUninit<T>] {
+    const fn as_uninit_slice_mut(&mut self) -> &mut [MaybeUninit<T>] {
         let len = N / size_of::<T>();
 
         // SAFETY: `_align` ensures we are correctly aligned.

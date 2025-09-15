@@ -1,6 +1,7 @@
 use crate::iter::adapters::zip::try_get_unchecked;
 use crate::iter::adapters::{SourceIter, TrustedRandomAccess, TrustedRandomAccessNoCoerce};
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused, TrustedLen};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -20,7 +21,7 @@ pub struct Enumerate<I> {
     count: usize,
 }
 impl<I> Enumerate<I> {
-    pub(in crate::iter) fn new(iter: I) -> Enumerate<I> {
+    pub(in crate::iter) const fn new(iter: I) -> Enumerate<I> {
         Enumerate { iter, count: 0 }
     }
 
@@ -59,9 +60,11 @@ impl<I> Enumerate<I> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> Iterator for Enumerate<I>
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+impl<I> const Iterator for Enumerate<I>
 where
-    I: Iterator,
+    I: [const] Iterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = (usize, <I as Iterator>::Item);
 
@@ -106,14 +109,14 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn enumerate<'a, T, Acc, R>(
+        const fn enumerate<'a, T, Acc, R>(
             count: &'a mut usize,
             mut fold: impl FnMut(Acc, (usize, T)) -> R + 'a,
-        ) -> impl FnMut(Acc, T) -> R + 'a {
+        ) -> impl [const] FnMut(Acc, T) -> R + 'a + [const] Destruct {
             #[rustc_inherit_overflow_checks]
             move |acc, item| {
                 let acc = fold(acc, (*count, item));
@@ -129,12 +132,13 @@ where
     fn fold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
         Fold: FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         #[inline]
-        fn enumerate<T, Acc>(
+        const fn enumerate<T, Acc>(
             mut count: usize,
             mut fold: impl FnMut(Acc, (usize, T)) -> Acc,
-        ) -> impl FnMut(Acc, T) -> Acc {
+        ) -> impl [const] FnMut(Acc, T) -> Acc + [const] Destruct {
             #[rustc_inherit_overflow_checks]
             move |acc, item| {
                 let acc = fold(acc, (count, item));
@@ -172,9 +176,11 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> DoubleEndedIterator for Enumerate<I>
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+impl<I> const DoubleEndedIterator for Enumerate<I>
 where
-    I: ExactSizeIterator + DoubleEndedIterator,
+    I: [const] ExactSizeIterator + [const] DoubleEndedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<(usize, <I as Iterator>::Item)> {
@@ -198,15 +204,15 @@ where
     fn try_rfold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        R: [const] Try<Output = Acc>,
     {
         // Can safely add and subtract the count, as `ExactSizeIterator` promises
         // that the number of elements fits into a `usize`.
-        fn enumerate<T, Acc, R>(
+        const fn enumerate<T, Acc, R>(
             mut count: usize,
             mut fold: impl FnMut(Acc, (usize, T)) -> R,
-        ) -> impl FnMut(Acc, T) -> R {
+        ) -> impl [const] FnMut(Acc, T) -> R + [const] Destruct {
             move |acc, item| {
                 count -= 1;
                 fold(acc, (count, item))
@@ -221,13 +227,14 @@ where
     fn rfold<Acc, Fold>(self, init: Acc, fold: Fold) -> Acc
     where
         Fold: FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         // Can safely add and subtract the count, as `ExactSizeIterator` promises
         // that the number of elements fits into a `usize`.
-        fn enumerate<T, Acc>(
+        const fn enumerate<T, Acc>(
             mut count: usize,
             mut fold: impl FnMut(Acc, (usize, T)) -> Acc,
-        ) -> impl FnMut(Acc, T) -> Acc {
+        ) -> impl [const] FnMut(Acc, T) -> Acc + [const] Destruct {
             move |acc, item| {
                 count -= 1;
                 fold(acc, (count, item))
@@ -247,9 +254,11 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> ExactSizeIterator for Enumerate<I>
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+impl<I> const ExactSizeIterator for Enumerate<I>
 where
-    I: ExactSizeIterator,
+    I: [const] ExactSizeIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     fn len(&self) -> usize {
         self.iter.len()
@@ -262,30 +271,46 @@ where
 
 #[doc(hidden)]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccess for Enumerate<I> where I: TrustedRandomAccess {}
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+unsafe impl<I> const TrustedRandomAccess for Enumerate<I> where I: [const] TrustedRandomAccess {}
 
 #[doc(hidden)]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccessNoCoerce for Enumerate<I>
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+unsafe impl<I> const TrustedRandomAccessNoCoerce for Enumerate<I>
 where
-    I: TrustedRandomAccessNoCoerce,
+    I: [const] TrustedRandomAccessNoCoerce,
 {
     const MAY_HAVE_SIDE_EFFECT: bool = I::MAY_HAVE_SIDE_EFFECT;
 }
 
 #[stable(feature = "fused", since = "1.26.0")]
-impl<I> FusedIterator for Enumerate<I> where I: FusedIterator {}
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+impl<I> const FusedIterator for Enumerate<I>
+where
+    I: [const] FusedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
+{
+}
 
 #[unstable(issue = "none", feature = "trusted_fused")]
-unsafe impl<I: TrustedFused> TrustedFused for Enumerate<I> {}
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+unsafe impl<I: [const] TrustedFused> const TrustedFused for Enumerate<I> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
-unsafe impl<I> TrustedLen for Enumerate<I> where I: TrustedLen {}
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+unsafe impl<I> const TrustedLen for Enumerate<I>
+where
+    I: [const] TrustedLen + [const] Destruct,
+    I::Item: [const] Destruct,
+{
+}
 
 #[unstable(issue = "none", feature = "inplace_iteration")]
-unsafe impl<I> SourceIter for Enumerate<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+unsafe impl<I> const SourceIter for Enumerate<I>
 where
-    I: SourceIter,
+    I: [const] SourceIter,
 {
     type Source = I::Source;
 
@@ -303,7 +328,8 @@ unsafe impl<I: InPlaceIterable> InPlaceIterable for Enumerate<I> {
 }
 
 #[stable(feature = "default_iters", since = "1.70.0")]
-impl<I: Default> Default for Enumerate<I> {
+#[rustc_const_unstable(feature = "const_default", issue = "143894")]
+impl<I: [const] Default> const Default for Enumerate<I> {
     /// Creates an `Enumerate` iterator from the default value of `I`
     /// ```
     /// # use core::slice;

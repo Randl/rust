@@ -10,7 +10,8 @@ const PSEUDO_MEDIAN_REC_THRESHOLD: usize = 64;
 /// This chooses a pivot by sampling an adaptive amount of points, approximating
 /// the quality of a median of sqrt(n) elements.
 #[inline]
-pub fn choose_pivot<T, F: FnMut(&T, &T) -> bool>(v: &[T], is_less: &mut F) -> usize {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn choose_pivot<T, F: [const] FnMut(&T, &T) -> bool>(v: &[T], is_less: &mut F) -> usize {
     // We use unsafe code and raw pointers here because we're dealing with
     // heavy recursion. Passing safe slices around would involve a lot of
     // branches and function call overhead.
@@ -52,7 +53,8 @@ pub fn choose_pivot<T, F: FnMut(&T, &T) -> bool>(v: &[T], is_less: &mut F) -> us
 ///
 /// SAFETY: a, b, c must point to the start of initialized regions of memory of
 /// at least n elements.
-unsafe fn median3_rec<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const unsafe fn median3_rec<T, F: [const] FnMut(&T, &T) -> bool>(
     mut a: *const T,
     mut b: *const T,
     mut c: *const T,
@@ -76,7 +78,13 @@ unsafe fn median3_rec<T, F: FnMut(&T, &T) -> bool>(
 ///
 /// SAFETY: a, b, c must be valid initialized elements.
 #[inline(always)]
-fn median3<T, F: FnMut(&T, &T) -> bool>(a: &T, b: &T, c: &T, is_less: &mut F) -> *const T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn median3<T, F: [const] FnMut(&T, &T) -> bool>(
+    a: &T,
+    b: &T,
+    c: &T,
+    is_less: &mut F,
+) -> *const T {
     // Compiler tends to make this branchless when sensible, and avoids the
     // third comparison when not.
     let x = is_less(a, b);

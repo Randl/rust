@@ -462,7 +462,9 @@ marker_impls! {
 // library, and there's no way to safely have this behavior right now.
 #[rustc_unsafe_specialization_marker]
 #[rustc_diagnostic_item = "Copy"]
-pub trait Copy: Clone {
+#[const_trait]
+#[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+pub trait Copy: [const] Clone {
     // Empty.
 }
 
@@ -852,10 +854,12 @@ impl<T: PointeeSized> cmp::Ord for PhantomData<T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> Copy for PhantomData<T> {}
+#[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+impl<T: PointeeSized> const Copy for PhantomData<T> {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PointeeSized> Clone for PhantomData<T> {
+#[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+impl<T: PointeeSized> const Clone for PhantomData<T> {
     fn clone(&self) -> Self {
         Self
     }
@@ -910,6 +914,8 @@ pub trait DiscriminantKind {
 // That requires porting the impls below to native internal impls.
 #[lang = "freeze"]
 #[unstable(feature = "freeze", issue = "121675")]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub unsafe auto trait Freeze {}
 
 #[unstable(feature = "freeze", issue = "121675")]
@@ -1021,7 +1027,8 @@ pub auto trait Unpin {}
 // marker in your struct acts as if you wrapped the entire struct in an `UnsafePinned`. This type
 // will likely eventually be deprecated, and all new code should be using `UnsafePinned` instead.
 #[stable(feature = "pin", since = "1.33.0")]
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Hash)]
+#[derive_const(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PhantomPinned;
 
 #[stable(feature = "pin", since = "1.33.0")]
@@ -1126,7 +1133,9 @@ marker_impls! {
 #[lang = "fn_ptr_trait"]
 #[rustc_deny_explicit_impl]
 #[rustc_do_not_implement_via_object]
-pub trait FnPtr: Copy + Clone {
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub trait FnPtr: [const] Copy + [const] Clone {
     /// Returns the address of the function pointer.
     #[lang = "fn_ptr_addr"]
     fn addr(self) -> *const ();

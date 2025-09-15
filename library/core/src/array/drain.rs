@@ -16,9 +16,10 @@ use crate::slice;
 ///
 /// The function-taking-a-closure structure makes it safe, as it keeps callers
 /// from looking at already-dropped elements.
-pub(crate) fn drain_array_with<T, R, const N: usize>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const fn drain_array_with<T, R, const N: usize>(
     array: [T; N],
-    func: impl for<'a> FnOnce(Drain<'a, T>) -> R,
+    func: impl for<'a> [const] FnOnce(Drain<'a, T>) -> R,
 ) -> R {
     let mut array = ManuallyDrop::new(array);
     // SAFETY: Now that the local won't drop it, it's ok to construct the `Drain` which will.

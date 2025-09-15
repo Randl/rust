@@ -1,6 +1,7 @@
 use crate::cmp;
 use crate::iter::adapters::SourceIter;
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused, TrustedLen, TrustedRandomAccess};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 
@@ -20,15 +21,17 @@ pub struct Take<I> {
 }
 
 impl<I> Take<I> {
-    pub(in crate::iter) fn new(iter: I, n: usize) -> Take<I> {
+    pub(in crate::iter) const fn new(iter: I, n: usize) -> Take<I> {
         Take { iter, n }
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> Iterator for Take<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const Iterator for Take<I>
 where
-    I: Iterator,
+    I: [const] Iterator,
+    I::Item: [const] Destruct,
 {
     type Item = <I as Iterator>::Item;
 
@@ -78,12 +81,12 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Fold: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        R: [const] Try<Output = Acc>,
     {
-        fn check<'a, T, Acc, R: Try<Output = Acc>>(
+        const fn check<'a, T, Acc, R: Try<Output = Acc>>(
             n: &'a mut usize,
             mut fold: impl FnMut(Acc, T) -> R + 'a,
-        ) -> impl FnMut(Acc, T) -> ControlFlow<R, Acc> + 'a {
+        ) -> impl [const] FnMut(Acc, T) -> ControlFlow<R, Acc> + 'a + [const] Destruct {
             move |acc, x| {
                 *n -= 1;
                 let r = fold(acc, x);
@@ -103,13 +106,18 @@ where
     fn fold<B, F>(self, init: B, f: F) -> B
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
+        B: [const] Destruct,
+        I: [const] Destruct,
     {
         Self::spec_fold(self, init, f)
     }
 
     #[inline]
-    fn for_each<F: FnMut(Self::Item)>(self, f: F) {
+    fn for_each<F: [const] FnMut(Self::Item) + [const] Destruct>(self, f: F)
+    where
+        I: [const] Destruct,
+    {
         Self::spec_for_each(self, f)
     }
 
@@ -249,21 +257,34 @@ unsafe impl<I: TrustedFused> TrustedFused for Take<I> {}
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<I: TrustedLen> TrustedLen for Take<I> {}
 
-trait SpecTake: Iterator {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+#[const_trait]
+trait SpecTake: [const] Iterator
+where
+    Self::Item: [const] Destruct,
+{
     fn spec_fold<B, F>(self, init: B, f: F) -> B
     where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B;
+        Self::Item: [const] Destruct,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
+        B: [const] Destruct,
+        Self: Sized;
 
-    fn spec_for_each<F: FnMut(Self::Item)>(self, f: F);
+    fn spec_for_each<F: [const] FnMut(Self::Item) + [const] Destruct>(self, f: F);
 }
 
-impl<I: Iterator> SpecTake for Take<I> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I: [const] Iterator> const SpecTake for Take<I>
+where
+    I::Item: [const] Destruct,
+    I: [const] Destruct,
+{
     #[inline]
     default fn spec_fold<B, F>(mut self, init: B, f: F) -> B
     where
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
+        B: [const] Destruct,
         Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
     {
         use crate::ops::NeverShortCircuit;
         self.try_fold(init, NeverShortCircuit::wrap_mut_2(f)).0
@@ -274,9 +295,9 @@ impl<I: Iterator> SpecTake for Take<I> {
         // The default implementation would use a unit accumulator, so we can
         // avoid a stateful closure by folding over the remaining number
         // of items we wish to return instead.
-        fn check<'a, Item>(
+        const fn check<'a, Item>(
             mut action: impl FnMut(Item) + 'a,
-        ) -> impl FnMut(usize, Item) -> Option<usize> + 'a {
+        ) -> impl [const] FnMut(usize, Item) -> Option<usize> + 'a + [const] Destruct {
             move |more, x| {
                 action(x);
                 more.checked_sub(1)
@@ -290,12 +311,17 @@ impl<I: Iterator> SpecTake for Take<I> {
     }
 }
 
-impl<I: Iterator + TrustedRandomAccess> SpecTake for Take<I> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I: [const] Iterator + [const] TrustedRandomAccess> const SpecTake for Take<I>
+where
+    I::Item: [const] Destruct,
+{
     #[inline]
     fn spec_fold<B, F>(mut self, init: B, mut f: F) -> B
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> B,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
+        I: [const] Destruct,
     {
         let mut acc = init;
         let end = self.n.min(self.iter.size());
@@ -308,7 +334,10 @@ impl<I: Iterator + TrustedRandomAccess> SpecTake for Take<I> {
     }
 
     #[inline]
-    fn spec_for_each<F: FnMut(Self::Item)>(mut self, mut f: F) {
+    fn spec_for_each<F: [const] FnMut(Self::Item) + [const] Destruct>(mut self, mut f: F)
+    where
+        I: [const] Destruct,
+    {
         let end = self.n.min(self.iter.size());
         for i in 0..end {
             // SAFETY: i < end <= self.iter.size() and we discard the iterator at the end

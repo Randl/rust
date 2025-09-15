@@ -1,4 +1,5 @@
 use crate::iter::{FusedIterator, TrustedLen};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{NeverShortCircuit, Try};
 use crate::ub_checks;
@@ -9,7 +10,8 @@ use crate::ub_checks;
 ///
 /// (Normal `Range` code needs to handle degenerate ranges like `10..0`,
 ///  which takes extra checks compared to only handling the canonical form.)
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Eq)]
+#[derive_const(Clone, PartialEq)]
 pub(crate) struct IndexRange {
     start: usize,
     end: usize,
@@ -54,7 +56,7 @@ impl IndexRange {
     /// # Safety
     /// - Can only be called when `start < end`, aka when `len > 0`.
     #[inline]
-    unsafe fn next_unchecked(&mut self) -> usize {
+    const unsafe fn next_unchecked(&mut self) -> usize {
         debug_assert!(self.start < self.end);
 
         let value = self.start;
@@ -66,7 +68,7 @@ impl IndexRange {
     /// # Safety
     /// - Can only be called when `start < end`, aka when `len > 0`.
     #[inline]
-    unsafe fn next_back_unchecked(&mut self) -> usize {
+    const unsafe fn next_back_unchecked(&mut self) -> usize {
         debug_assert!(self.start < self.end);
 
         // SAFETY: The range isn't empty, so this cannot overflow
@@ -81,7 +83,8 @@ impl IndexRange {
     ///
     /// This is designed to help implement `Iterator::advance_by`.
     #[inline]
-    pub(crate) fn take_prefix(&mut self, n: usize) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn take_prefix(&mut self, n: usize) -> Self {
         let mid = if n <= self.len() {
             // SAFETY: We just checked that this will be between start and end,
             // and thus the addition cannot overflow.
@@ -101,7 +104,8 @@ impl IndexRange {
     ///
     /// This is designed to help implement `Iterator::advance_back_by`.
     #[inline]
-    pub(crate) fn take_suffix(&mut self, n: usize) -> Self {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const fn take_suffix(&mut self, n: usize) -> Self {
         let mid = if n <= self.len() {
             // SAFETY: We just checked that this will be between start and end,
             // and thus the subtraction cannot overflow.
@@ -116,13 +120,14 @@ impl IndexRange {
     }
 
     #[inline]
-    fn assume_range(&self) {
+    const fn assume_range(&self) {
         // SAFETY: This is the type invariant
         unsafe { crate::hint::assert_unchecked(self.start <= self.end) }
     }
 }
 
-impl Iterator for IndexRange {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const Iterator for IndexRange {
     type Item = usize;
 
     #[inline]
@@ -148,7 +153,10 @@ impl Iterator for IndexRange {
     }
 
     #[inline]
-    fn fold<B, F: FnMut(B, usize) -> B>(mut self, init: B, f: F) -> B {
+    fn fold<B, F: [const] FnMut(B, usize) -> B>(mut self, init: B, f: F) -> B
+    where
+        B: [const] Destruct,
+    {
         self.try_fold(init, NeverShortCircuit::wrap_mut_2(f)).0
     }
 
@@ -156,8 +164,8 @@ impl Iterator for IndexRange {
     fn try_fold<B, F, R>(&mut self, mut accum: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         // `Range` needs to check `start < end`, but thanks to our type invariant
         // we can loop on the stricter `start != end`.
@@ -172,7 +180,8 @@ impl Iterator for IndexRange {
     }
 }
 
-impl DoubleEndedIterator for IndexRange {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const DoubleEndedIterator for IndexRange {
     #[inline]
     fn next_back(&mut self) -> Option<usize> {
         if self.len() > 0 {
@@ -190,7 +199,10 @@ impl DoubleEndedIterator for IndexRange {
     }
 
     #[inline]
-    fn rfold<B, F: FnMut(B, usize) -> B>(mut self, init: B, f: F) -> B {
+    fn rfold<B, F: [const] FnMut(B, usize) -> B>(mut self, init: B, f: F) -> B
+    where
+        B: [const] Destruct,
+    {
         self.try_rfold(init, NeverShortCircuit::wrap_mut_2(f)).0
     }
 
@@ -198,8 +210,8 @@ impl DoubleEndedIterator for IndexRange {
     fn try_rfold<B, F, R>(&mut self, mut accum: B, mut f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         // `Range` needs to check `start < end`, but thanks to our type invariant
         // we can loop on the stricter `start != end`.
@@ -214,7 +226,8 @@ impl DoubleEndedIterator for IndexRange {
     }
 }
 
-impl ExactSizeIterator for IndexRange {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const ExactSizeIterator for IndexRange {
     #[inline]
     fn len(&self) -> usize {
         self.len()

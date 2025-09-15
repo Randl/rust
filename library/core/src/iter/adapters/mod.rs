@@ -1,4 +1,5 @@
 use crate::iter::InPlaceIterable;
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ChangeOutputType, ControlFlow, FromResidual, Residual, Try};
 
@@ -102,6 +103,8 @@ pub use self::{
 #[unstable(issue = "none", feature = "inplace_iteration")]
 #[doc(hidden)]
 #[rustc_specialization_trait]
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub unsafe trait SourceIter {
     /// A source stage in an iterator pipeline.
     type Source;
@@ -149,11 +152,14 @@ pub(crate) struct GenericShunt<'a, I, R> {
 /// Process the given iterator as if it yielded the item's `Try::Output`
 /// type instead. Any `Try::Residual`s encountered will stop the inner iterator
 /// and be propagated back to the overall result.
-pub(crate) fn try_process<I, T, R, F, U>(iter: I, mut f: F) -> ChangeOutputType<I::Item, U>
+
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const fn try_process<I, T, R, F, U>(iter: I, mut f: F) -> ChangeOutputType<I::Item, U>
 where
     I: Iterator<Item: Try<Output = T, Residual = R>>,
-    for<'a> F: FnMut(GenericShunt<'a, I, R>) -> U,
-    R: Residual<U>,
+    for<'a> F: [const] FnMut(GenericShunt<'a, I, R>) -> U + [const] Destruct,
+    R: [const] Residual<U>,
+    U: [const] Destruct,
 {
     let mut residual = None;
     let shunt = GenericShunt { iter, residual: &mut residual };
@@ -164,9 +170,10 @@ where
     }
 }
 
-impl<I, R> Iterator for GenericShunt<'_, I, R>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I, R> const Iterator for GenericShunt<'_, I, R>
 where
-    I: Iterator<Item: Try<Residual = R>>,
+    I: [const] Iterator<Item: Try<Residual = R>>,
 {
     type Item = <I::Item as Try>::Output;
 
@@ -185,8 +192,8 @@ where
 
     fn try_fold<B, F, T>(&mut self, init: B, mut f: F) -> T
     where
-        F: FnMut(B, Self::Item) -> T,
-        T: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> T,
+        T: [const] Try<Output = B>,
     {
         self.iter
             .try_fold(init, |acc, x| match Try::branch(x) {

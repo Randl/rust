@@ -77,7 +77,7 @@ macro_rules! iterator {
             ///
             /// The iterator must not be empty
             #[inline]
-            unsafe fn next_back_unchecked(&mut self) -> $elem {
+            const unsafe fn next_back_unchecked(&mut self) -> $elem {
                 // SAFETY: the caller promised it's not empty, so
                 // the offsetting is in-bounds and there's an element to return.
                 unsafe { self.pre_dec_end(1).$into_ref() }
@@ -85,7 +85,8 @@ macro_rules! iterator {
 
             // Helper function for creating a slice from the iterator.
             #[inline(always)]
-            fn make_slice(&self) -> &'a [T] {
+            #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+            const fn make_slice(&self) -> &'a [T] {
                 // SAFETY: the iterator was created from a slice with pointer
                 // `self.ptr` and length `len!(self)`. This guarantees that all
                 // the prerequisites for `from_raw_parts` are fulfilled.
@@ -96,7 +97,7 @@ macro_rules! iterator {
             // returning the old start.
             // Unsafe because the offset must not exceed `self.len()`.
             #[inline(always)]
-            unsafe fn post_inc_start(&mut self, offset: usize) -> NonNull<T> {
+            const unsafe fn post_inc_start(&mut self, offset: usize) -> NonNull<T> {
                 let old = self.ptr;
 
                 // SAFETY: the caller guarantees that `offset` doesn't exceed `self.len()`,
@@ -115,7 +116,7 @@ macro_rules! iterator {
             // returning the new end.
             // Unsafe because the offset must not exceed `self.len()`.
             #[inline(always)]
-            unsafe fn pre_dec_end(&mut self, offset: usize) -> NonNull<T> {
+            const unsafe fn pre_dec_end(&mut self, offset: usize) -> NonNull<T> {
                 if_zst!(mut self,
                     // SAFETY: By our precondition, `offset` can be at most the
                     // current length, so the subtraction can never overflow.
@@ -136,7 +137,8 @@ macro_rules! iterator {
         }
 
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<T> ExactSizeIterator for $name<'_, T> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T> const ExactSizeIterator for $name<'_, T> {
             #[inline(always)]
             fn len(&self) -> usize {
                 len!(self)
@@ -149,7 +151,8 @@ macro_rules! iterator {
         }
 
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<'a, T> Iterator for $name<'a, T> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<'a, T> const Iterator for $name<'a, T> {
             type Item = $elem;
 
             #[inline]
@@ -234,7 +237,7 @@ macro_rules! iterator {
             #[inline]
             fn fold<B, F>(self, init: B, mut f: F) -> B
                 where
-                    F: FnMut(B, Self::Item) -> B,
+                    F: ~const FnMut(B, Self::Item) -> B + ~const Destruct,
             {
                 // this implementation consists of the following optimizations compared to the
                 // default implementation:
@@ -271,7 +274,7 @@ macro_rules! iterator {
             fn for_each<F>(mut self, mut f: F)
             where
                 Self: Sized,
-                F: FnMut(Self::Item),
+                F: ~const FnMut(Self::Item) + ~const Destruct,
             {
                 while let Some(x) = self.next() {
                     f(x);
@@ -285,7 +288,7 @@ macro_rules! iterator {
             fn all<F>(&mut self, mut f: F) -> bool
             where
                 Self: Sized,
-                F: FnMut(Self::Item) -> bool,
+                F: ~const FnMut(Self::Item) -> bool + ~const Destruct,
             {
                 while let Some(x) = self.next() {
                     if !f(x) {
@@ -302,7 +305,7 @@ macro_rules! iterator {
             fn any<F>(&mut self, mut f: F) -> bool
             where
                 Self: Sized,
-                F: FnMut(Self::Item) -> bool,
+                F: ~const FnMut(Self::Item) -> bool + ~const Destruct,
             {
                 while let Some(x) = self.next() {
                     if f(x) {
@@ -319,7 +322,7 @@ macro_rules! iterator {
             fn find<P>(&mut self, mut predicate: P) -> Option<Self::Item>
             where
                 Self: Sized,
-                P: FnMut(&Self::Item) -> bool,
+                P: ~const FnMut(&Self::Item) -> bool + ~const Destruct,
             {
                 while let Some(x) = self.next() {
                     if predicate(&x) {
@@ -336,7 +339,7 @@ macro_rules! iterator {
             fn find_map<B, F>(&mut self, mut f: F) -> Option<B>
             where
                 Self: Sized,
-                F: FnMut(Self::Item) -> Option<B>,
+                F: ~const FnMut(Self::Item) -> Option<B> + ~const Destruct,
             {
                 while let Some(x) = self.next() {
                     if let Some(y) = f(x) {
@@ -353,7 +356,7 @@ macro_rules! iterator {
             #[rustc_inherit_overflow_checks]
             fn position<P>(&mut self, mut predicate: P) -> Option<usize> where
                 Self: Sized,
-                P: FnMut(Self::Item) -> bool,
+                P: ~const FnMut(Self::Item) -> bool + ~const Destruct,
             {
                 let n = len!(self);
                 let mut i = 0;
@@ -374,8 +377,8 @@ macro_rules! iterator {
             // faster to compile. Also, the `assume` avoids a bounds check.
             #[inline]
             fn rposition<P>(&mut self, mut predicate: P) -> Option<usize> where
-                P: FnMut(Self::Item) -> bool,
-                Self: Sized + ExactSizeIterator + DoubleEndedIterator
+                P: ~const FnMut(Self::Item) -> bool + ~const Destruct,
+                Self: Sized + ~const  ExactSizeIterator + ~const DoubleEndedIterator
             {
                 let n = len!(self);
                 let mut i = n;
@@ -410,7 +413,8 @@ macro_rules! iterator {
         }
 
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<'a, T> DoubleEndedIterator for $name<'a, T> {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<'a, T> const DoubleEndedIterator for $name<'a, T> {
             #[inline]
             fn next_back(&mut self) -> Option<$elem> {
                 // could be implemented with slices, but this avoids bounds checks
@@ -453,12 +457,15 @@ macro_rules! iterator {
         }
 
         #[stable(feature = "fused", since = "1.26.0")]
-        impl<T> FusedIterator for $name<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T> const FusedIterator for $name<'_, T> {}
 
         #[unstable(feature = "trusted_len", issue = "37572")]
-        unsafe impl<T> TrustedLen for $name<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        unsafe impl<T> const TrustedLen for $name<'_, T> {}
 
-        impl<'a, T> UncheckedIterator for $name<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<'a, T> const UncheckedIterator for $name<'a, T> {
             #[inline]
             unsafe fn next_unchecked(&mut self) -> $elem {
                 // SAFETY: The caller promised there's at least one more item.
@@ -469,7 +476,8 @@ macro_rules! iterator {
         }
 
         #[stable(feature = "default_iters", since = "1.70.0")]
-        impl<T> Default for $name<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T> const Default for $name<'_, T> {
             /// Creates an empty slice iterator.
             ///
             /// ```
@@ -487,7 +495,8 @@ macro_rules! iterator {
 macro_rules! forward_iterator {
     ($name:ident: $elem:ident, $iter_of:ty) => {
         #[stable(feature = "rust1", since = "1.0.0")]
-        impl<'a, $elem, P> Iterator for $name<'a, $elem, P>
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<'a, $elem, P> const Iterator for $name<'a, $elem, P>
         where
             P: FnMut(&T) -> bool,
         {

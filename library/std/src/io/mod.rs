@@ -353,7 +353,8 @@ struct Guard<'a> {
     len: usize,
 }
 
-impl Drop for Guard<'_> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const Drop for Guard<'_> {
     fn drop(&mut self) {
         unsafe {
             self.buf.set_len(self.len);

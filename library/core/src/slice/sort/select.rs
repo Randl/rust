@@ -7,6 +7,7 @@
 //! better performance than one would get using heapsort as fallback.
 
 use crate::cfg_select;
+use crate::marker::Destruct;
 use crate::mem::{self, SizedTypeProperties};
 #[cfg(not(feature = "optimize_for_size"))]
 use crate::slice::sort::shared::pivot::choose_pivot;
@@ -14,13 +15,15 @@ use crate::slice::sort::shared::smallsort::insertion_sort_shift_left;
 use crate::slice::sort::unstable::quicksort::partition;
 
 /// Reorders the slice such that the element at `index` is at its final sorted position.
-pub(crate) fn partition_at_index<T, F>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const fn partition_at_index<T, F>(
     v: &mut [T],
     index: usize,
     mut is_less: F,
 ) -> (&mut [T], &mut T, &mut [T])
 where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+    T: [const] Destruct,
 {
     let len = v.len();
 
@@ -63,13 +66,15 @@ where
 const INSERTION_SORT_THRESHOLD: usize = 16;
 
 #[cfg(not(feature = "optimize_for_size"))]
-fn partition_at_index_loop<'a, T, F>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn partition_at_index_loop<'a, T, F>(
     mut v: &'a mut [T],
     mut index: usize,
     mut ancestor_pivot: Option<&'a T>,
     is_less: &mut F,
 ) where
-    F: FnMut(&T, &T) -> bool,
+    F: [const] FnMut(&T, &T) -> bool,
+    T: [const] Destruct,
 {
     // Limit the amount of iterations and fall back to fast deterministic selection to ensure O(n)
     // worst case running time. This limit needs to be constant, because using `ilog2(len)` like in
@@ -145,7 +150,7 @@ fn partition_at_index_loop<'a, T, F>(
 
 /// Helper function that returns the index of the minimum element in the slice using the given
 /// comparator function
-fn min_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) -> Option<usize> {
+const fn min_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) -> Option<usize> {
     slice
         .iter()
         .enumerate()
@@ -155,7 +160,7 @@ fn min_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) -> Optio
 
 /// Helper function that returns the index of the maximum element in the slice using the given
 /// comparator function
-fn max_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) -> Option<usize> {
+const fn max_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) -> Option<usize> {
     slice
         .iter()
         .enumerate()
@@ -165,7 +170,12 @@ fn max_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) -> Optio
 
 /// Selection algorithm to select the k-th element from the slice in guaranteed O(n) time.
 /// This is essentially a quickselect that uses Tukey's Ninther for pivot selection
-fn median_of_medians<T, F: FnMut(&T, &T) -> bool>(mut v: &mut [T], is_less: &mut F, mut k: usize) {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn median_of_medians<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+    mut v: &mut [T],
+    is_less: &mut F,
+    mut k: usize,
+) {
     // Since this function isn't public, it should never be called with an out-of-bounds index.
     debug_assert!(k < v.len());
 
@@ -216,7 +226,11 @@ fn median_of_medians<T, F: FnMut(&T, &T) -> bool>(mut v: &mut [T], is_less: &mut
 // Optimized for when `k` lies somewhere in the middle of the slice. Selects a pivot
 // as close as possible to the median of the slice. For more details on how the algorithm
 // operates, refer to the paper <https://drops.dagstuhl.de/opus/volltexte/2017/7612/pdf/LIPIcs-SEA-2017-24.pdf>.
-fn median_of_ninthers<T, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) -> usize {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn median_of_ninthers<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    is_less: &mut F,
+) -> usize {
     // use `saturating_mul` so the multiplication doesn't overflow on 16-bit platforms.
     let frac = if v.len() <= 1024 {
         v.len() / 12
@@ -246,7 +260,8 @@ fn median_of_ninthers<T, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F)
 /// Moves around the 9 elements at the indices a..i, such that
 /// `v[d]` contains the median of the 9 elements and the other
 /// elements are partitioned around it.
-fn ninther<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn ninther<T, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     is_less: &mut F,
     a: usize,
@@ -290,7 +305,8 @@ fn ninther<T, F: FnMut(&T, &T) -> bool>(
 
 /// returns the index pointing to the median of the 3
 /// elements `v[a]`, `v[b]` and `v[c]`
-fn median_idx<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn median_idx<T, F: [const] FnMut(&T, &T) -> bool>(
     v: &[T],
     is_less: &mut F,
     mut a: usize,

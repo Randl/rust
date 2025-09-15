@@ -290,8 +290,10 @@ pub macro Clone($item:item) {
 /// Use closures allow captured values to be automatically used.
 /// This is similar to have a closure that you would call `.use` over each captured value.
 #[unstable(feature = "ergonomic_clones", issue = "132290")]
+#[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+#[const_trait]
 #[lang = "use_cloned"]
-pub trait UseCloned: Clone {
+pub trait UseCloned: [const] Clone {
     // Empty.
 }
 
@@ -299,7 +301,8 @@ macro_rules! impl_use_cloned {
     ($($t:ty)*) => {
         $(
             #[unstable(feature = "ergonomic_clones", issue = "132290")]
-            impl UseCloned for $t {}
+            #[rustc_const_unstable(feature = "const_clone", issue = "142757")]
+            impl const UseCloned for $t {}
         )*
     }
 }

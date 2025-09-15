@@ -1,8 +1,13 @@
+use crate::marker::Destruct;
+
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub(super) trait SpecFill<T> {
     fn spec_fill(&mut self, value: T);
 }
 
-impl<T: Clone> SpecFill<T> for [T] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Clone + [const] Destruct> const SpecFill<T> for [T] {
     default fn spec_fill(&mut self, value: T) {
         if let Some((last, elems)) = self.split_last_mut() {
             for el in elems {
@@ -14,7 +19,8 @@ impl<T: Clone> SpecFill<T> for [T] {
     }
 }
 
-impl<T: Copy> SpecFill<T> for [T] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Copy + [const] Destruct> const SpecFill<T> for [T] {
     default fn spec_fill(&mut self, value: T) {
         for item in self.iter_mut() {
             *item = value;

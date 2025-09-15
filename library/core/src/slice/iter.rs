@@ -8,7 +8,7 @@ use crate::hint::assert_unchecked;
 use crate::iter::{
     FusedIterator, TrustedLen, TrustedRandomAccess, TrustedRandomAccessNoCoerce, UncheckedIterator,
 };
-use crate::marker::PhantomData;
+use crate::marker::{Destruct, PhantomData};
 use crate::mem::{self, SizedTypeProperties};
 use crate::num::NonZero;
 use crate::ptr::{NonNull, without_provenance, without_provenance_mut};
@@ -18,7 +18,8 @@ use crate::{cmp, fmt};
 impl<T> !Iterator for [T] {}
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> IntoIterator for &'a [T] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const IntoIterator for &'a [T] {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -28,7 +29,8 @@ impl<'a, T> IntoIterator for &'a [T] {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> IntoIterator for &'a mut [T] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const IntoIterator for &'a mut [T] {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -134,7 +136,8 @@ impl<'a, T> Iter<'a, T> {
     #[must_use]
     #[stable(feature = "iter_to_slice", since = "1.4.0")]
     #[inline]
-    pub fn as_slice(&self) -> &'a [T] {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn as_slice(&self) -> &'a [T] {
         self.make_slice()
     }
 }
@@ -143,7 +146,7 @@ iterator! {struct Iter -> *const T, &'a T, const, {/* no mut */}, as_ref, {
     fn is_sorted_by<F>(self, mut compare: F) -> bool
     where
         Self: Sized,
-        F: FnMut(&Self::Item, &Self::Item) -> bool,
+        F: FnMut(&Self::Item, &Self::Item) -> bool + ~const Destruct,
     {
         self.as_slice().is_sorted_by(|a, b| compare(&a, &b))
     }
@@ -158,7 +161,8 @@ impl<T> Clone for Iter<'_, T> {
 }
 
 #[stable(feature = "slice_iter_as_ref", since = "1.13.0")]
-impl<T> AsRef<[T]> for Iter<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const AsRef<[T]> for Iter<'_, T> {
     #[inline]
     fn as_ref(&self) -> &[T] {
         self.as_slice()
@@ -310,7 +314,8 @@ impl<'a, T> IterMut<'a, T> {
     #[must_use]
     #[stable(feature = "slice_iter_mut_as_slice", since = "1.53.0")]
     #[inline]
-    pub fn as_slice(&self) -> &[T] {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn as_slice(&self) -> &[T] {
         self.make_slice()
     }
 
@@ -354,7 +359,8 @@ impl<'a, T> IterMut<'a, T> {
 }
 
 #[stable(feature = "slice_iter_mut_as_slice", since = "1.53.0")]
-impl<T> AsRef<[T]> for IterMut<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const AsRef<[T]> for IterMut<'_, T> {
     #[inline]
     fn as_ref(&self) -> &[T] {
         self.as_slice()
@@ -373,7 +379,9 @@ iterator! {struct IterMut -> *mut T, &'a mut T, mut, {mut}, as_mut, {}}
 /// An internal abstraction over the splitting iterators, so that
 /// splitn, splitn_mut etc can be implemented once.
 #[doc(hidden)]
-pub(super) trait SplitIter: DoubleEndedIterator {
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(super) trait SplitIter: [const] DoubleEndedIterator {
     /// Marks the underlying iterator as complete, extracting the remaining
     /// portion of the slice.
     fn finish(&mut self) -> Option<Self::Item>;
@@ -411,7 +419,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> Split<'a, T, P> {
     #[inline]
-    pub(super) fn new(slice: &'a [T], pred: P) -> Self {
+    pub(super) const fn new(slice: &'a [T], pred: P) -> Self {
         Self { v: slice, pred, finished: false }
     }
     /// Returns a slice which contains items not yet handled by split.
@@ -425,7 +433,7 @@ impl<'a, T: 'a, P: FnMut(&T) -> bool> Split<'a, T, P> {
     /// assert_eq!(split.as_slice(), &[3,4,5]);
     /// ```
     #[unstable(feature = "split_as_slice", issue = "96137")]
-    pub fn as_slice(&self) -> &'a [T] {
+    pub const fn as_slice(&self) -> &'a [T] {
         if self.finished { &[] } else { &self.v }
     }
 }
@@ -442,9 +450,10 @@ where
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T, P> Clone for Split<'_, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, P> const Clone for Split<'_, T, P>
 where
-    P: Clone + FnMut(&T) -> bool,
+    P: [const] Clone + FnMut(&T) -> bool,
 {
     fn clone(&self) -> Self {
         Split { v: self.v, pred: self.pred.clone(), finished: self.finished }
@@ -452,7 +461,8 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T, P> Iterator for Split<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const Iterator for Split<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -491,7 +501,8 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T, P> DoubleEndedIterator for Split<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const DoubleEndedIterator for Split<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -516,7 +527,8 @@ where
     }
 }
 
-impl<'a, T, P> SplitIter for Split<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const SplitIter for Split<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -565,7 +577,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitInclusive<'a, T, P> {
     #[inline]
-    pub(super) fn new(slice: &'a [T], pred: P) -> Self {
+    pub(super) const fn new(slice: &'a [T], pred: P) -> Self {
         let finished = slice.is_empty();
         Self { v: slice, pred, finished }
     }
@@ -686,7 +698,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitMut<'a, T, P> {
     #[inline]
-    pub(super) fn new(slice: &'a mut [T], pred: P) -> Self {
+    pub(super) const fn new(slice: &'a mut [T], pred: P) -> Self {
         Self { v: slice, pred, finished: false }
     }
 }
@@ -701,7 +713,8 @@ where
     }
 }
 
-impl<'a, T, P> SplitIter for SplitMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const SplitIter for SplitMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -717,7 +730,8 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T, P> Iterator for SplitMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const Iterator for SplitMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -757,7 +771,8 @@ where
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T, P> DoubleEndedIterator for SplitMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const DoubleEndedIterator for SplitMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -815,7 +830,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitInclusiveMut<'a, T, P> {
     #[inline]
-    pub(super) fn new(slice: &'a mut [T], pred: P) -> Self {
+    pub(super) const fn new(slice: &'a mut [T], pred: P) -> Self {
         let finished = slice.is_empty();
         Self { v: slice, pred, finished }
     }
@@ -835,7 +850,8 @@ where
 }
 
 #[stable(feature = "split_inclusive", since = "1.51.0")]
-impl<'a, T, P> Iterator for SplitInclusiveMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const Iterator for SplitInclusiveMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -876,7 +892,8 @@ where
 }
 
 #[stable(feature = "split_inclusive", since = "1.51.0")]
-impl<'a, T, P> DoubleEndedIterator for SplitInclusiveMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const DoubleEndedIterator for SplitInclusiveMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -940,7 +957,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> RSplit<'a, T, P> {
     #[inline]
-    pub(super) fn new(slice: &'a [T], pred: P) -> Self {
+    pub(super) const fn new(slice: &'a [T], pred: P) -> Self {
         Self { inner: Split::new(slice, pred) }
     }
 }
@@ -960,9 +977,10 @@ where
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<T, P> Clone for RSplit<'_, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, P> const Clone for RSplit<'_, T, P>
 where
-    P: Clone + FnMut(&T) -> bool,
+    P: [const] Clone + FnMut(&T) -> bool,
 {
     fn clone(&self) -> Self {
         RSplit { inner: self.inner.clone() }
@@ -970,7 +988,8 @@ where
 }
 
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<'a, T, P> Iterator for RSplit<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const Iterator for RSplit<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -988,7 +1007,8 @@ where
 }
 
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<'a, T, P> DoubleEndedIterator for RSplit<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const DoubleEndedIterator for RSplit<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -999,7 +1019,8 @@ where
 }
 
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<'a, T, P> SplitIter for RSplit<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const SplitIter for RSplit<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -1037,7 +1058,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> RSplitMut<'a, T, P> {
     #[inline]
-    pub(super) fn new(slice: &'a mut [T], pred: P) -> Self {
+    pub(super) const fn new(slice: &'a mut [T], pred: P) -> Self {
         Self { inner: SplitMut::new(slice, pred) }
     }
 }
@@ -1056,7 +1077,8 @@ where
 }
 
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<'a, T, P> SplitIter for RSplitMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const SplitIter for RSplitMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -1067,7 +1089,8 @@ where
 }
 
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<'a, T, P> Iterator for RSplitMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const Iterator for RSplitMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -1085,7 +1108,8 @@ where
 }
 
 #[stable(feature = "slice_rsplit", since = "1.27.0")]
-impl<'a, T, P> DoubleEndedIterator for RSplitMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, P> const DoubleEndedIterator for RSplitMut<'a, T, P>
 where
     P: FnMut(&T) -> bool,
 {
@@ -1107,7 +1131,8 @@ struct GenericSplitN<I> {
     count: usize,
 }
 
-impl<T, I: SplitIter<Item = T>> Iterator for GenericSplitN<I> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, I: [const] SplitIter<Item = T>> const Iterator for GenericSplitN<I> {
     type Item = T;
 
     #[inline]
@@ -1163,7 +1188,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitN<'a, T, P> {
     #[inline]
-    pub(super) fn new(s: Split<'a, T, P>, n: usize) -> Self {
+    pub(super) const fn new(s: Split<'a, T, P>, n: usize) -> Self {
         Self { inner: GenericSplitN { iter: s, count: n } }
     }
 }
@@ -1207,7 +1232,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> RSplitN<'a, T, P> {
     #[inline]
-    pub(super) fn new(s: RSplit<'a, T, P>, n: usize) -> Self {
+    pub(super) const fn new(s: RSplit<'a, T, P>, n: usize) -> Self {
         Self { inner: GenericSplitN { iter: s, count: n } }
     }
 }
@@ -1247,7 +1272,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> SplitNMut<'a, T, P> {
     #[inline]
-    pub(super) fn new(s: SplitMut<'a, T, P>, n: usize) -> Self {
+    pub(super) const fn new(s: SplitMut<'a, T, P>, n: usize) -> Self {
         Self { inner: GenericSplitN { iter: s, count: n } }
     }
 }
@@ -1288,7 +1313,7 @@ where
 
 impl<'a, T: 'a, P: FnMut(&T) -> bool> RSplitNMut<'a, T, P> {
     #[inline]
-    pub(super) fn new(s: RSplitMut<'a, T, P>, n: usize) -> Self {
+    pub(super) const fn new(s: RSplitMut<'a, T, P>, n: usize) -> Self {
         Self { inner: GenericSplitN { iter: s, count: n } }
     }
 }
@@ -1342,14 +1367,16 @@ impl<'a, T: 'a> Windows<'a, T> {
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> Clone for Windows<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const Clone for Windows<'_, T> {
     fn clone(&self) -> Self {
         Windows { v: self.v, size: self.size }
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> Iterator for Windows<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for Windows<'a, T> {
     type Item = &'a [T];
 
     #[inline]
@@ -1413,7 +1440,8 @@ impl<'a, T> Iterator for Windows<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> DoubleEndedIterator for Windows<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for Windows<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a [T]> {
         if self.size.get() > self.v.len() {
@@ -1440,7 +1468,8 @@ impl<'a, T> DoubleEndedIterator for Windows<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> ExactSizeIterator for Windows<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for Windows<'_, T> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<T> TrustedLen for Windows<'_, T> {}
@@ -1496,14 +1525,16 @@ impl<'a, T: 'a> Chunks<'a, T> {
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> Clone for Chunks<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const Clone for Chunks<'_, T> {
     fn clone(&self) -> Self {
         Chunks { v: self.v, chunk_size: self.chunk_size }
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> Iterator for Chunks<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for Chunks<'a, T> {
     type Item = &'a [T];
 
     #[inline]
@@ -1577,7 +1608,8 @@ impl<'a, T> Iterator for Chunks<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> DoubleEndedIterator for Chunks<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for Chunks<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a [T]> {
         if self.v.is_empty() {
@@ -1625,7 +1657,8 @@ impl<'a, T> DoubleEndedIterator for Chunks<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> ExactSizeIterator for Chunks<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for Chunks<'_, T> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<T> TrustedLen for Chunks<'_, T> {}
@@ -1683,7 +1716,8 @@ impl<'a, T: 'a> ChunksMut<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> Iterator for ChunksMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for ChunksMut<'a, T> {
     type Item = &'a mut [T];
 
     #[inline]
@@ -1765,7 +1799,8 @@ impl<'a, T> Iterator for ChunksMut<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T> DoubleEndedIterator for ChunksMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for ChunksMut<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a mut [T]> {
         if self.v.is_empty() {
@@ -1806,7 +1841,8 @@ impl<'a, T> DoubleEndedIterator for ChunksMut<'a, T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T> ExactSizeIterator for ChunksMut<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for ChunksMut<'_, T> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<T> TrustedLen for ChunksMut<'_, T> {}
@@ -1897,14 +1933,16 @@ impl<'a, T> ChunksExact<'a, T> {
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<T> Clone for ChunksExact<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const Clone for ChunksExact<'_, T> {
     fn clone(&self) -> Self {
         ChunksExact { v: self.v, rem: self.rem, chunk_size: self.chunk_size }
     }
 }
 
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<'a, T> Iterator for ChunksExact<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for ChunksExact<'a, T> {
     type Item = &'a [T];
 
     #[inline]
@@ -1955,7 +1993,8 @@ impl<'a, T> Iterator for ChunksExact<'a, T> {
 }
 
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<'a, T> DoubleEndedIterator for ChunksExact<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for ChunksExact<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a [T]> {
         if self.v.len() < self.chunk_size {
@@ -1984,7 +2023,8 @@ impl<'a, T> DoubleEndedIterator for ChunksExact<'a, T> {
 }
 
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<T> ExactSizeIterator for ChunksExact<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for ChunksExact<'_, T> {
     fn is_empty(&self) -> bool {
         self.v.is_empty()
     }
@@ -2062,7 +2102,8 @@ impl<'a, T> ChunksExactMut<'a, T> {
 }
 
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<'a, T> Iterator for ChunksExactMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for ChunksExactMut<'a, T> {
     type Item = &'a mut [T];
 
     #[inline]
@@ -2116,7 +2157,8 @@ impl<'a, T> Iterator for ChunksExactMut<'a, T> {
 }
 
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<'a, T> DoubleEndedIterator for ChunksExactMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for ChunksExactMut<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a mut [T]> {
         if self.v.len() < self.chunk_size {
@@ -2151,7 +2193,8 @@ impl<'a, T> DoubleEndedIterator for ChunksExactMut<'a, T> {
 }
 
 #[stable(feature = "chunks_exact", since = "1.31.0")]
-impl<T> ExactSizeIterator for ChunksExactMut<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for ChunksExactMut<'_, T> {
     fn is_empty(&self) -> bool {
         self.v.is_empty()
     }
@@ -2199,7 +2242,8 @@ unsafe impl<T> Sync for ChunksExactMut<'_, T> where T: Sync {}
 ///
 /// [`array_windows`]: slice::array_windows
 /// [slices]: slice
-#[derive(Debug, Clone, Copy)]
+#[derive_const(Clone, Copy)]
+#[derive(Debug)]
 #[unstable(feature = "array_windows", issue = "75027")]
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct ArrayWindows<'a, T: 'a, const N: usize> {
@@ -2214,7 +2258,8 @@ impl<'a, T: 'a, const N: usize> ArrayWindows<'a, T, N> {
 }
 
 #[unstable(feature = "array_windows", issue = "75027")]
-impl<'a, T, const N: usize> Iterator for ArrayWindows<'a, T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, const N: usize> const Iterator for ArrayWindows<'a, T, N> {
     type Item = &'a [T; N];
 
     #[inline]
@@ -2251,7 +2296,8 @@ impl<'a, T, const N: usize> Iterator for ArrayWindows<'a, T, N> {
 }
 
 #[unstable(feature = "array_windows", issue = "75027")]
-impl<'a, T, const N: usize> DoubleEndedIterator for ArrayWindows<'a, T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, const N: usize> const DoubleEndedIterator for ArrayWindows<'a, T, N> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a [T; N]> {
         let ret = self.v.last_chunk();
@@ -2270,7 +2316,8 @@ impl<'a, T, const N: usize> DoubleEndedIterator for ArrayWindows<'a, T, N> {
 }
 
 #[unstable(feature = "array_windows", issue = "75027")]
-impl<T, const N: usize> ExactSizeIterator for ArrayWindows<'_, T, N> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T, const N: usize> const ExactSizeIterator for ArrayWindows<'_, T, N> {
     fn is_empty(&self) -> bool {
         self.v.len() < N
     }
@@ -2314,14 +2361,16 @@ impl<'a, T: 'a> RChunks<'a, T> {
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<T> Clone for RChunks<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const Clone for RChunks<'_, T> {
     fn clone(&self) -> Self {
         RChunks { v: self.v, chunk_size: self.chunk_size }
     }
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> Iterator for RChunks<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for RChunks<'a, T> {
     type Item = &'a [T];
 
     #[inline]
@@ -2401,7 +2450,8 @@ impl<'a, T> Iterator for RChunks<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> DoubleEndedIterator for RChunks<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for RChunks<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a [T]> {
         if self.v.is_empty() {
@@ -2435,7 +2485,8 @@ impl<'a, T> DoubleEndedIterator for RChunks<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<T> ExactSizeIterator for RChunks<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for RChunks<'_, T> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<T> TrustedLen for RChunks<'_, T> {}
@@ -2493,7 +2544,8 @@ impl<'a, T: 'a> RChunksMut<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> Iterator for RChunksMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for RChunksMut<'a, T> {
     type Item = &'a mut [T];
 
     #[inline]
@@ -2582,7 +2634,8 @@ impl<'a, T> Iterator for RChunksMut<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> DoubleEndedIterator for RChunksMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for RChunksMut<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a mut [T]> {
         if self.v.is_empty() {
@@ -2621,7 +2674,8 @@ impl<'a, T> DoubleEndedIterator for RChunksMut<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<T> ExactSizeIterator for RChunksMut<'_, T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for RChunksMut<'_, T> {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<T> TrustedLen for RChunksMut<'_, T> {}
@@ -2712,14 +2766,16 @@ impl<'a, T> RChunksExact<'a, T> {
 
 // FIXME(#26925) Remove in favor of `#[derive(Clone)]`
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> Clone for RChunksExact<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Clone for RChunksExact<'a, T> {
     fn clone(&self) -> RChunksExact<'a, T> {
         RChunksExact { v: self.v, rem: self.rem, chunk_size: self.chunk_size }
     }
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> Iterator for RChunksExact<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for RChunksExact<'a, T> {
     type Item = &'a [T];
 
     #[inline]
@@ -2771,7 +2827,8 @@ impl<'a, T> Iterator for RChunksExact<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> DoubleEndedIterator for RChunksExact<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for RChunksExact<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a [T]> {
         if self.v.len() < self.chunk_size {
@@ -2803,7 +2860,8 @@ impl<'a, T> DoubleEndedIterator for RChunksExact<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> ExactSizeIterator for RChunksExact<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const ExactSizeIterator for RChunksExact<'a, T> {
     fn is_empty(&self) -> bool {
         self.v.is_empty()
     }
@@ -2880,7 +2938,8 @@ impl<'a, T> RChunksExactMut<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> Iterator for RChunksExactMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const Iterator for RChunksExactMut<'a, T> {
     type Item = &'a mut [T];
 
     #[inline]
@@ -2937,7 +2996,8 @@ impl<'a, T> Iterator for RChunksExactMut<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<'a, T> DoubleEndedIterator for RChunksExactMut<'a, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T> const DoubleEndedIterator for RChunksExactMut<'a, T> {
     #[inline]
     fn next_back(&mut self) -> Option<&'a mut [T]> {
         if self.v.len() < self.chunk_size {
@@ -2975,7 +3035,8 @@ impl<'a, T> DoubleEndedIterator for RChunksExactMut<'a, T> {
 }
 
 #[stable(feature = "rchunks", since = "1.31.0")]
-impl<T> ExactSizeIterator for RChunksExactMut<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const ExactSizeIterator for RChunksExactMut<'_, T> {
     fn is_empty(&self) -> bool {
         self.v.is_empty()
     }
@@ -3044,9 +3105,10 @@ impl<'a, T: 'a, P> ChunkBy<'a, T, P> {
 }
 
 #[stable(feature = "slice_group_by", since = "1.77.0")]
-impl<'a, T: 'a, P> Iterator for ChunkBy<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T: 'a + [const] Destruct, P> const Iterator for ChunkBy<'a, T, P>
 where
-    P: FnMut(&T, &T) -> bool,
+    P: [const] FnMut(&T, &T) -> bool + [const] Destruct,
 {
     type Item = &'a [T];
 
@@ -3078,9 +3140,11 @@ where
 }
 
 #[stable(feature = "slice_group_by", since = "1.77.0")]
-impl<'a, T: 'a, P> DoubleEndedIterator for ChunkBy<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T: 'a, P> const DoubleEndedIterator for ChunkBy<'a, T, P>
 where
-    P: FnMut(&T, &T) -> bool,
+    T: [const] Destruct,
+    P: [const] FnMut(&T, &T) -> bool + [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -3103,7 +3167,8 @@ where
 impl<'a, T: 'a, P> FusedIterator for ChunkBy<'a, T, P> where P: FnMut(&T, &T) -> bool {}
 
 #[stable(feature = "slice_group_by_clone", since = "1.89.0")]
-impl<'a, T: 'a, P: Clone> Clone for ChunkBy<'a, T, P> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T: 'a, P: [const] Clone> const Clone for ChunkBy<'a, T, P> {
     fn clone(&self) -> Self {
         Self { slice: self.slice, predicate: self.predicate.clone() }
     }
@@ -3138,9 +3203,10 @@ impl<'a, T: 'a, P> ChunkByMut<'a, T, P> {
 }
 
 #[stable(feature = "slice_group_by", since = "1.77.0")]
-impl<'a, T: 'a, P> Iterator for ChunkByMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T: 'a + [const] Destruct, P> const Iterator for ChunkByMut<'a, T, P>
 where
-    P: FnMut(&T, &T) -> bool,
+    P: [const] FnMut(&T, &T) -> bool + [const] Destruct,
 {
     type Item = &'a mut [T];
 
@@ -3173,9 +3239,11 @@ where
 }
 
 #[stable(feature = "slice_group_by", since = "1.77.0")]
-impl<'a, T: 'a, P> DoubleEndedIterator for ChunkByMut<'a, T, P>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T: 'a, P> const DoubleEndedIterator for ChunkByMut<'a, T, P>
 where
-    P: FnMut(&T, &T) -> bool,
+    T: [const] Destruct,
+    P: [const] FnMut(&T, &T) -> bool + [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {

@@ -17,6 +17,7 @@
 #![feature(char_max_len)]
 #![feature(clone_to_uninit)]
 #![feature(const_cmp)]
+#![feature(const_cmp)]
 #![feature(const_convert)]
 #![feature(const_destruct)]
 #![feature(const_drop_in_place)]

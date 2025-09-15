@@ -1,4 +1,5 @@
 use crate::iter::{FusedIterator, TrustedLen};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -17,7 +18,8 @@ pub struct Rev<T> {
 }
 
 impl<T> Rev<T> {
-    pub(in crate::iter) fn new(iter: T) -> Rev<T> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(iter: T) -> Rev<T> {
         Rev { iter }
     }
 
@@ -42,9 +44,11 @@ impl<T> Rev<T> {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> Iterator for Rev<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const Iterator for Rev<I>
 where
-    I: DoubleEndedIterator,
+    I: [const] DoubleEndedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = <I as Iterator>::Item;
 
@@ -70,15 +74,16 @@ where
     fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         self.iter.try_rfold(init, f)
     }
 
     fn fold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.iter.rfold(init, f)
     }
@@ -86,16 +91,18 @@ where
     #[inline]
     fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
     {
         self.iter.rfind(predicate)
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> DoubleEndedIterator for Rev<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const DoubleEndedIterator for Rev<I>
 where
-    I: DoubleEndedIterator,
+    I: [const] DoubleEndedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     #[inline]
     fn next_back(&mut self) -> Option<<I as Iterator>::Item> {
@@ -115,31 +122,34 @@ where
     fn try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         self.iter.try_fold(init, f)
     }
 
     fn rfold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
+        Acc: [const] Destruct,
     {
         self.iter.fold(init, f)
     }
 
     fn rfind<P>(&mut self, predicate: P) -> Option<Self::Item>
     where
-        P: FnMut(&Self::Item) -> bool,
+        P: [const] FnMut(&Self::Item) -> bool + [const] Destruct,
     {
         self.iter.find(predicate)
     }
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<I> ExactSizeIterator for Rev<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<I> const ExactSizeIterator for Rev<I>
 where
-    I: ExactSizeIterator + DoubleEndedIterator,
+    I: [const] ExactSizeIterator + [const] DoubleEndedIterator + [const] Destruct,
+    I::Item: [const] Destruct,
 {
     fn len(&self) -> usize {
         self.iter.len()

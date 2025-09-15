@@ -1003,7 +1003,8 @@ impl<T: PointeeSized> NonNull<T> {
     #[inline]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     #[stable(feature = "non_null_convenience", since = "1.80.0")]
-    pub unsafe fn read_volatile(self) -> T
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn read_volatile(self) -> T
     where
         T: Sized,
     {
@@ -1177,7 +1178,8 @@ impl<T: PointeeSized> NonNull<T> {
     #[inline(always)]
     #[cfg_attr(miri, track_caller)] // even without panics, this helps for Miri backtraces
     #[stable(feature = "non_null_convenience", since = "1.80.0")]
-    pub unsafe fn write_volatile(self, val: T)
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const unsafe fn write_volatile(self, val: T)
     where
         T: Sized,
     {
@@ -1289,7 +1291,8 @@ impl<T: PointeeSized> NonNull<T> {
     #[inline]
     #[must_use]
     #[stable(feature = "non_null_convenience", since = "1.80.0")]
-    pub fn align_offset(self, align: usize) -> usize
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn align_offset(self, align: usize) -> usize
     where
         T: Sized,
     {
@@ -1677,10 +1680,12 @@ impl<T: PointeeSized> fmt::Pointer for NonNull<T> {
 }
 
 #[stable(feature = "nonnull", since = "1.25.0")]
-impl<T: PointeeSized> Eq for NonNull<T> {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: PointeeSized> const Eq for NonNull<T> {}
 
 #[stable(feature = "nonnull", since = "1.25.0")]
-impl<T: PointeeSized> PartialEq for NonNull<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: PointeeSized> const PartialEq for NonNull<T> {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn eq(&self, other: &Self) -> bool {
@@ -1689,7 +1694,8 @@ impl<T: PointeeSized> PartialEq for NonNull<T> {
 }
 
 #[stable(feature = "nonnull", since = "1.25.0")]
-impl<T: PointeeSized> Ord for NonNull<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: PointeeSized> const Ord for NonNull<T> {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn cmp(&self, other: &Self) -> Ordering {
@@ -1698,7 +1704,8 @@ impl<T: PointeeSized> Ord for NonNull<T> {
 }
 
 #[stable(feature = "nonnull", since = "1.25.0")]
-impl<T: PointeeSized> PartialOrd for NonNull<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: PointeeSized> const PartialOrd for NonNull<T> {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

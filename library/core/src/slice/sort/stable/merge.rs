@@ -1,11 +1,13 @@
 //! This module contains logic for performing a merge of two sorted sub-slices.
 
+use crate::marker::Destruct;
 use crate::mem::MaybeUninit;
 use crate::{cmp, ptr};
 
 /// Merges non-decreasing runs `v[..mid]` and `v[mid..]` using `scratch` as
 /// temporary storage, and stores the result into `v[..]`.
-pub fn merge<T, F: FnMut(&T, &T) -> bool>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn merge<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     mid: usize,
@@ -75,7 +77,8 @@ impl<T> MergeState<T> {
     /// the longer sub-slice and so that `dst` can be written to at least the shorter sub-slice
     /// length times. In addition `start -> end` and `right -> right_end` MUST be valid to be
     /// read. This function MUST only be called once.
-    unsafe fn merge_up<F: FnMut(&T, &T) -> bool>(
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const unsafe fn merge_up<F: [const] FnMut(&T, &T) -> bool>(
         &mut self,
         mut right: *const T,
         right_end: *const T,
@@ -105,7 +108,9 @@ impl<T> MergeState<T> {
     /// the shorter sub-slice and so that `out` can be written to at least the shorter sub-slice
     /// length times. In addition `left_end <- dst` and `right_end <- end` MUST be valid to be
     /// read. This function MUST only be called once.
-    unsafe fn merge_down<F: FnMut(&T, &T) -> bool>(
+
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    const unsafe fn merge_down<F: [const] FnMut(&T, &T) -> bool>(
         &mut self,
         left_end: *const T,
         right_end: *const T,
@@ -135,7 +140,8 @@ impl<T> MergeState<T> {
     }
 }
 
-impl<T> Drop for MergeState<T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const Drop for MergeState<T> {
     fn drop(&mut self) {
         // SAFETY: The user of MergeState MUST ensure, that at any point this drop
         // impl MAY run, for example when the user provided `is_less` panics, that

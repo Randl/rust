@@ -12,6 +12,7 @@ use crate::fmt;
 use crate::hash::{self, Hash};
 use crate::intrinsics::transmute_unchecked;
 use crate::iter::{UncheckedIterator, repeat_n};
+use crate::marker::Destruct;
 use crate::mem::{self, MaybeUninit};
 use crate::ops::{
     ChangeOutputType, ControlFlow, FromResidual, Index, IndexMut, NeverShortCircuit, Residual, Try,
@@ -50,7 +51,8 @@ pub use iter::IntoIter;
 #[inline]
 #[must_use = "cloning is often expensive and is not expected to have side effects"]
 #[stable(feature = "array_repeat", since = "1.91.0")]
-pub fn repeat<T: Clone, const N: usize>(val: T) -> [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn repeat<T: [const] Clone + [const] Destruct, const N: usize>(val: T) -> [T; N] {
     from_trusted_iterator(repeat_n(val, N))
 }
 
@@ -104,9 +106,11 @@ pub fn repeat<T: Clone, const N: usize>(val: T) -> [T; N] {
 /// ```
 #[inline]
 #[stable(feature = "array_from_fn", since = "1.63.0")]
-pub fn from_fn<T, const N: usize, F>(f: F) -> [T; N]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn from_fn<T, const N: usize, F>(f: F) -> [T; N]
 where
-    F: FnMut(usize) -> T,
+    T: [const] Destruct,
+    F: [const] FnMut(usize) -> T,
 {
     try_from_fn(NeverShortCircuit::wrap_mut_1(f)).0
 }
@@ -142,11 +146,12 @@ where
 /// ```
 #[inline]
 #[unstable(feature = "array_try_from_fn", issue = "89379")]
-pub fn try_from_fn<R, const N: usize, F>(cb: F) -> ChangeOutputType<R, [R::Output; N]>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn try_from_fn<R, const N: usize, F>(cb: F) -> ChangeOutputType<R, [R::Output; N]>
 where
-    F: FnMut(usize) -> R,
-    R: Try,
-    R::Residual: Residual<[R::Output; N]>,
+    F: [const] FnMut(usize) -> R + [const] Destruct,
+    R: [const] Try,
+    R::Residual: [const] Residual<[R::Output; N]>,
 {
     let mut array = [const { MaybeUninit::uninit() }; N];
     match try_from_fn_erased(&mut array, cb) {
@@ -356,7 +361,8 @@ impl<T: fmt::Debug, const N: usize> fmt::Debug for [T; N] {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T, const N: usize> IntoIterator for &'a [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, const N: usize> const IntoIterator for &'a [T; N] {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -366,7 +372,8 @@ impl<'a, T, const N: usize> IntoIterator for &'a [T; N] {
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<'a, T, const N: usize> IntoIterator for &'a mut [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, T, const N: usize> const IntoIterator for &'a mut [T; N] {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -403,7 +410,8 @@ where
 
 /// Implements comparison of arrays [lexicographically](Ord#lexicographical-comparison).
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: PartialOrd, const N: usize> PartialOrd for [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] PartialOrd, const N: usize> const PartialOrd for [T; N] {
     #[inline]
     fn partial_cmp(&self, other: &[T; N]) -> Option<Ordering> {
         PartialOrd::partial_cmp(&&self[..], &&other[..])
@@ -428,7 +436,8 @@ impl<T: PartialOrd, const N: usize> PartialOrd for [T; N] {
 
 /// Implements comparison of arrays [lexicographically](Ord#lexicographical-comparison).
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<T: Ord, const N: usize> Ord for [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Ord, const N: usize> const Ord for [T; N] {
     #[inline]
     fn cmp(&self, other: &[T; N]) -> Ordering {
         Ord::cmp(&&self[..], &&other[..])
@@ -436,33 +445,42 @@ impl<T: Ord, const N: usize> Ord for [T; N] {
 }
 
 #[stable(feature = "copy_clone_array_lib", since = "1.58.0")]
-impl<T: Copy, const N: usize> Copy for [T; N] {}
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Copy + [const] Destruct, const N: usize> const Copy for [T; N] {}
 
 #[stable(feature = "copy_clone_array_lib", since = "1.58.0")]
-impl<T: Clone, const N: usize> Clone for [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Clone + [const] Destruct, const N: usize> const Clone for [T; N] {
     #[inline]
     fn clone(&self) -> Self {
         SpecArrayClone::clone(self)
     }
 
     #[inline]
-    fn clone_from(&mut self, other: &Self) {
+    fn clone_from(&mut self, other: &Self)
+    where
+        Self: [const] Destruct,
+    {
         self.clone_from_slice(other);
     }
 }
 
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 trait SpecArrayClone: Clone {
     fn clone<const N: usize>(array: &[Self; N]) -> [Self; N];
 }
 
-impl<T: Clone> SpecArrayClone for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Clone + [const] Destruct> const SpecArrayClone for T {
     #[inline]
     default fn clone<const N: usize>(array: &[T; N]) -> [T; N] {
         from_trusted_iterator(array.iter().cloned())
     }
 }
 
-impl<T: Copy> SpecArrayClone for T {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T: [const] Copy + [const] Destruct> const SpecArrayClone for T {
     #[inline]
     fn clone<const N: usize>(array: &[T; N]) -> [T; N] {
         *array
@@ -481,7 +499,8 @@ impl<T: Copy> SpecArrayClone for T {
 macro_rules! array_impl_default {
     {$n:expr, $t:ident $($ts:ident)*} => {
         #[stable(since = "1.4.0", feature = "array_default")]
-        impl<T> Default for [T; $n] where T: Default {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T> const Default for [T; $n] where T: ~const Default {
             fn default() -> [T; $n] {
                 [$t::default(), $($ts::default()),*]
             }
@@ -490,7 +509,8 @@ macro_rules! array_impl_default {
     };
     {$n:expr,} => {
         #[stable(since = "1.4.0", feature = "array_default")]
-        impl<T> Default for [T; $n] {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl<T> const Default for [T; $n] {
             fn default() -> [T; $n] { [] }
         }
     };
@@ -542,8 +562,10 @@ impl<T, const N: usize> [T; N] {
     /// ```
     #[must_use]
     #[stable(feature = "array_map", since = "1.55.0")]
-    pub fn map<F, U>(self, f: F) -> [U; N]
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn map<F, U>(self, f: F) -> [U; N]
     where
+        U: [const] Destruct,
         F: FnMut(T) -> U,
     {
         self.try_map(NeverShortCircuit::wrap_mut_1(f)).0
@@ -580,7 +602,8 @@ impl<T, const N: usize> [T; N] {
     /// assert_eq!(c, Some(a));
     /// ```
     #[unstable(feature = "array_try_map", issue = "79711")]
-    pub fn try_map<R>(self, f: impl FnMut(T) -> R) -> ChangeOutputType<R, [R::Output; N]>
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub const fn try_map<R>(self, f: impl FnMut(T) -> R) -> ChangeOutputType<R, [R::Output; N]>
     where
         R: Try<Residual: Residual<[R::Output; N]>>,
     {
@@ -715,7 +738,7 @@ impl<T, const N: usize> [T; N] {
         issue = "90091"
     )]
     #[inline]
-    pub fn split_array_ref<const M: usize>(&self) -> (&[T; M], &[T]) {
+    pub const fn split_array_ref<const M: usize>(&self) -> (&[T; M], &[T]) {
         self.split_first_chunk::<M>().unwrap()
     }
 
@@ -748,7 +771,7 @@ impl<T, const N: usize> [T; N] {
         issue = "90091"
     )]
     #[inline]
-    pub fn split_array_mut<const M: usize>(&mut self) -> (&mut [T; M], &mut [T]) {
+    pub const fn split_array_mut<const M: usize>(&mut self) -> (&mut [T; M], &mut [T]) {
         self.split_first_chunk_mut::<M>().unwrap()
     }
 
@@ -793,7 +816,7 @@ impl<T, const N: usize> [T; N] {
         issue = "90091"
     )]
     #[inline]
-    pub fn rsplit_array_ref<const M: usize>(&self) -> (&[T], &[T; M]) {
+    pub const fn rsplit_array_ref<const M: usize>(&self) -> (&[T], &[T; M]) {
         self.split_last_chunk::<M>().unwrap()
     }
 
@@ -826,7 +849,7 @@ impl<T, const N: usize> [T; N] {
         issue = "90091"
     )]
     #[inline]
-    pub fn rsplit_array_mut<const M: usize>(&mut self) -> (&mut [T], &mut [T; M]) {
+    pub const fn rsplit_array_mut<const M: usize>(&mut self) -> (&mut [T], &mut [T; M]) {
         self.split_last_chunk_mut::<M>().unwrap()
     }
 }
@@ -840,20 +863,29 @@ impl<T, const N: usize> [T; N] {
 /// By depending on `TrustedLen`, however, we can do that check up-front (where
 /// it easily optimizes away) so it doesn't impact the loop that fills the array.
 #[inline]
-fn from_trusted_iterator<T, const N: usize>(iter: impl UncheckedIterator<Item = T>) -> [T; N] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn from_trusted_iterator<T, const N: usize>(
+    iter: impl [const] UncheckedIterator<Item = T> + [const] Destruct,
+) -> [T; N]
+where
+    T: [const] Destruct,
+{
     try_from_trusted_iterator(iter.map(NeverShortCircuit)).0
 }
 
 #[inline]
-fn try_from_trusted_iterator<T, R, const N: usize>(
-    iter: impl UncheckedIterator<Item = R>,
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn try_from_trusted_iterator<T, R, const N: usize>(
+    iter: impl [const] UncheckedIterator<Item = R>,
 ) -> ChangeOutputType<R, [T; N]>
 where
-    R: Try<Output = T>,
-    R::Residual: Residual<[T; N]>,
+    R: [const] Try<Output = T>,
+    R::Residual: [const] Residual<[T; N]>,
 {
     assert!(iter.size_hint().0 >= N);
-    fn next<T>(mut iter: impl UncheckedIterator<Item = T>) -> impl FnMut(usize) -> T {
+    const fn next<T>(
+        mut iter: impl [const] UncheckedIterator<Item = T>,
+    ) -> impl [const] FnMut(usize) -> T + [const] Destruct {
         move |_| {
             // SAFETY: We know that `from_fn` will call this at most N times,
             // and we checked to ensure that we have at least that many items.
@@ -878,12 +910,13 @@ where
 /// not optimizing away.  So if you give it a shot, make sure to watch what
 /// happens in the codegen tests.
 #[inline]
-fn try_from_fn_erased<T, R>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn try_from_fn_erased<T, R>(
     buffer: &mut [MaybeUninit<T>],
-    mut generator: impl FnMut(usize) -> R,
+    mut generator: impl [const] FnMut(usize) -> R + [const] Destruct,
 ) -> ControlFlow<R::Residual>
 where
-    R: Try<Output = T>,
+    R: [const] Try<Output = T>,
 {
     let mut guard = Guard { array_mut: buffer, initialized: 0 };
 
@@ -923,7 +956,8 @@ impl<T> Guard<'_, T> {
     ///
     /// No more than N elements must be initialized.
     #[inline]
-    pub(crate) unsafe fn push_unchecked(&mut self, item: T) {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(crate) const unsafe fn push_unchecked(&mut self, item: T) {
         // SAFETY: If `initialized` was correct before and the caller does not
         // invoke this method more than N times then writes will be in-bounds
         // and slots will not be initialized more than once.
@@ -934,7 +968,8 @@ impl<T> Guard<'_, T> {
     }
 }
 
-impl<T> Drop for Guard<'_, T> {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<T> const Drop for Guard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         debug_assert!(self.initialized <= self.array_mut.len());
@@ -959,8 +994,9 @@ impl<T> Drop for Guard<'_, T> {
 ///
 /// Used for [`Iterator::next_chunk`].
 #[inline]
-pub(crate) fn iter_next_chunk<T, const N: usize>(
-    iter: &mut impl Iterator<Item = T>,
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub(crate) const fn iter_next_chunk<T: [const] Destruct, const N: usize>(
+    iter: &mut impl [const] Iterator<Item = T>,
 ) -> Result<[T; N], IntoIter<T, N>> {
     let mut array = [const { MaybeUninit::uninit() }; N];
     let r = iter_next_chunk_erased(&mut array, iter);
@@ -982,10 +1018,14 @@ pub(crate) fn iter_next_chunk<T, const N: usize>(
 /// Unfortunately this loop has two exit conditions, the buffer filling up
 /// or the iterator running out of items, making it tend to optimize poorly.
 #[inline]
-fn iter_next_chunk_erased<T>(
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn iter_next_chunk_erased<T>(
     buffer: &mut [MaybeUninit<T>],
-    iter: &mut impl Iterator<Item = T>,
-) -> Result<(), usize> {
+    iter: &mut impl [const] Iterator<Item = T>,
+) -> Result<(), usize>
+where
+    T: [const] Destruct,
+{
     let mut guard = Guard { array_mut: buffer, initialized: 0 };
     while guard.initialized < guard.array_mut.len() {
         let Some(item) = iter.next() else {

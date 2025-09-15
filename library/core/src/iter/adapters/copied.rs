@@ -1,6 +1,7 @@
 use crate::iter::adapters::zip::try_get_unchecked;
 use crate::iter::adapters::{SourceIter, TrustedRandomAccess, TrustedRandomAccessNoCoerce};
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedLen};
+use crate::marker::Destruct;
 use crate::mem::{MaybeUninit, SizedTypeProperties};
 use crate::num::NonZero;
 use crate::ops::Try;
@@ -21,23 +22,31 @@ pub struct Copied<I> {
 }
 
 impl<I> Copied<I> {
-    pub(in crate::iter) fn new(it: I) -> Copied<I> {
+    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+    pub(in crate::iter) const fn new(it: I) -> Copied<I> {
         Copied { it }
     }
 }
 
-fn copy_fold<T: Copy, Acc>(mut f: impl FnMut(Acc, T) -> Acc) -> impl FnMut(Acc, &T) -> Acc {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn copy_fold<T: Copy, Acc>(
+    mut f: impl FnMut(Acc, T) -> Acc,
+) -> impl [const] FnMut(Acc, &T) -> Acc + [const] Destruct {
     move |acc, &elt| f(acc, elt)
 }
 
-fn copy_try_fold<T: Copy, Acc, R>(mut f: impl FnMut(Acc, T) -> R) -> impl FnMut(Acc, &T) -> R {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const fn copy_try_fold<T: Copy, Acc, R>(
+    mut f: impl FnMut(Acc, T) -> R,
+) -> impl [const] FnMut(Acc, &T) -> R + [const] Destruct {
     move |acc, &elt| f(acc, elt)
 }
 
 #[stable(feature = "iter_copied", since = "1.36.0")]
-impl<'a, I, T: 'a> Iterator for Copied<I>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, I, T: 'a> const Iterator for Copied<I>
 where
-    I: Iterator<Item = &'a T>,
+    I: [const] Iterator<Item = &'a T> + [const] Destruct,
     T: Copy,
 {
     type Item = T;
@@ -51,6 +60,7 @@ where
     ) -> Result<[Self::Item; N], array::IntoIter<Self::Item, N>>
     where
         Self: Sized,
+        T: [const] Destruct,
     {
         <I as SpecNextChunk<'_, N, T>>::spec_next_chunk(&mut self.it)
     }
@@ -62,15 +72,16 @@ where
     fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         Self: Sized,
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R,
+        R: [const] Try<Output = B>,
     {
         self.it.try_fold(init, copy_try_fold(f))
     }
 
     fn fold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
-        F: FnMut(Acc, Self::Item) -> Acc,
+        F: [const] FnMut(Acc, Self::Item) -> Acc,
+        Acc: [const] Destruct,
     {
         self.it.fold(init, copy_fold(f))
     }
@@ -178,24 +189,33 @@ where
 {
 }
 
-trait SpecNextChunk<'a, const N: usize, T: 'a>: Iterator<Item = &'a T>
+#[const_trait]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+trait SpecNextChunk<'a, const N: usize, T: 'a>: [const] Iterator<Item = &'a T>
 where
     T: Copy,
 {
-    fn spec_next_chunk(&mut self) -> Result<[T; N], array::IntoIter<T, N>>;
+    fn spec_next_chunk(&mut self) -> Result<[T; N], array::IntoIter<T, N>>
+    where
+        T: [const] Destruct;
 }
 
-impl<'a, const N: usize, I, T: 'a> SpecNextChunk<'a, N, T> for I
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, const N: usize, I, T: 'a> const SpecNextChunk<'a, N, T> for I
 where
-    I: Iterator<Item = &'a T>,
+    I: [const] Iterator<Item = &'a T>,
     T: Copy,
 {
-    default fn spec_next_chunk(&mut self) -> Result<[T; N], array::IntoIter<T, N>> {
+    default fn spec_next_chunk(&mut self) -> Result<[T; N], array::IntoIter<T, N>>
+    where
+        T: [const] Destruct,
+    {
         array::iter_next_chunk(&mut self.copied())
     }
 }
 
-impl<'a, const N: usize, T: 'a> SpecNextChunk<'a, N, T> for crate::slice::Iter<'a, T>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<'a, const N: usize, T: 'a> const SpecNextChunk<'a, N, T> for crate::slice::Iter<'a, T>
 where
     T: Copy,
 {
