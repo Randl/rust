@@ -603,9 +603,9 @@ where
         R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn flatten<U: Iterator, Acc, R: Try<Output = Acc>>(
+        const fn flatten<U: Iterator, Acc, R: Try<Output = Acc>>(
             mut fold: impl FnMut(Acc, U::Item) -> R,
-        ) -> impl FnMut(Acc, &mut U) -> R {
+        ) -> impl [const] FnMut(Acc, &mut U) -> R + [const] Destruct {
             move |acc, iter| iter.try_fold(acc, &mut fold)
         }
 
@@ -621,7 +621,7 @@ where
         #[inline]
         const fn flatten<U: Iterator, Acc>(
             mut fold: impl FnMut(Acc, U::Item) -> Acc,
-        ) -> impl [const] FnMut(Acc, U) -> Acc {
+        ) -> impl [const] FnMut(Acc, U) -> Acc + [const] Destruct {
             move |acc, iter| iter.fold(acc, &mut fold)
         }
 
@@ -714,7 +714,7 @@ where
         #[inline]
         const fn flatten<U: DoubleEndedIterator, Acc, R: Try<Output = Acc>>(
             mut fold: impl FnMut(Acc, U::Item) -> R,
-        ) -> impl [const] FnMut(Acc, &mut U) -> R {
+        ) -> impl [const] FnMut(Acc, &mut U) -> R + [const] Destruct {
             move |acc, iter| iter.try_rfold(acc, &mut fold)
         }
 
@@ -730,7 +730,7 @@ where
         #[inline]
         const fn flatten<U: DoubleEndedIterator, Acc>(
             mut fold: impl FnMut(Acc, U::Item) -> Acc,
-        ) -> impl [const] FnMut(Acc, U) -> Acc {
+        ) -> impl [const] FnMut(Acc, U) -> Acc + [const] Destruct {
             move |acc, iter| iter.rfold(acc, &mut fold)
         }
 

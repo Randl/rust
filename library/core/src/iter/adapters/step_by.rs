@@ -53,7 +53,7 @@ impl<I> StepBy<I> {
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<I> const Iterator for StepBy<I>
 where
-    I: [const] Iterator,
+    I: [const] Iterator + [const] Destruct,
     I::Item: [const] Destruct,
 {
     type Item = I::Item;
@@ -111,7 +111,7 @@ where
 #[stable(feature = "double_ended_step_by_iterator", since = "1.38.0")]
 impl<I> const DoubleEndedIterator for StepBy<I>
 where
-    I: [const] DoubleEndedIterator + [const] ExactSizeIterator,
+    I: [const] DoubleEndedIterator + [const] ExactSizeIterator + [const] Destruct,
     I::Item: [const] Destruct,
 {
     #[inline]
@@ -138,6 +138,7 @@ where
         Self: Sized,
         F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
         Acc: [const] Destruct,
+        I: [const] Destruct,
     {
         self.spec_rfold(init, f)
     }
@@ -148,7 +149,7 @@ where
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<I> const ExactSizeIterator for StepBy<I>
 where
-    I: [const] ExactSizeIterator,
+    I: [const] ExactSizeIterator + [const] Destruct,
     I::Item: [const] Destruct,
 {
 }
@@ -260,13 +261,13 @@ where
     default fn spec_size_hint(&self) -> (usize, Option<usize>) {
         #[inline]
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-        const fn first_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize {
+        const fn first_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize + [const] Destruct {
             move |n| if n == 0 { 0 } else { 1 + (n - 1) / step }
         }
 
         #[inline]
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-        const fn other_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize {
+        const fn other_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize + [const] Destruct {
             move |n| n / step
         }
 
@@ -334,7 +335,7 @@ where
         const fn nth<I: Iterator>(
             iter: &mut I,
             step_minus_one: usize,
-        ) -> impl FnMut() -> Option<I::Item> + '_ {
+        ) -> impl [const] FnMut() -> Option<I::Item> + '_ + [const] Destruct {
             move || iter.nth(step_minus_one)
         }
 
@@ -378,6 +379,7 @@ unsafe impl<I: [const] DoubleEndedIterator + [const] ExactSizeIterator> const St
     for StepBy<I>
 where
     I::Item: [const] Destruct,
+    I: [const] Destruct,
 {
     type Item = I::Item;
 
@@ -402,10 +404,10 @@ where
         R: [const] Try<Output = Acc>,
     {
         #[inline]
-        fn nth_back<I: DoubleEndedIterator>(
+        const fn nth_back<I: DoubleEndedIterator>(
             iter: &mut I,
             step_minus_one: usize,
-        ) -> impl FnMut() -> Option<I::Item> + '_ {
+        ) -> impl [const] FnMut() -> Option<I::Item> + '_ + [const] Destruct {
             move || iter.nth_back(step_minus_one)
         }
 
