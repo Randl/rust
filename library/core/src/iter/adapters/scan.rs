@@ -38,10 +38,11 @@ impl<I: fmt::Debug, St: fmt::Debug, F> fmt::Debug for Scan<I, St, F> {
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<B, I, St, F> const Iterator for Scan<I, St, F>
 where
-    I: [const] Iterator,
+    I: [const] Iterator + [const] Destruct,
     I::Item: [const] Destruct,
-    F: [const] FnMut(&mut St, I::Item) -> Option<B>,
+    F: [const] FnMut(&mut St, I::Item) -> Option<B> + [const] Destruct,
     B: [const] Destruct,
+    St: [const] Destruct,
 {
     type Item = B;
 

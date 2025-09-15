@@ -203,7 +203,8 @@ unsafe trait StepByImpl<I> {
     fn spec_fold<Acc, F>(self, acc: Acc, f: F) -> Acc
     where
         F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
-        Acc: [const] Destruct;
+        Acc: [const] Destruct,
+        I: [const] Destruct;
 }
 
 /// Specialization trait for double-ended iteration.
@@ -236,7 +237,7 @@ unsafe trait StepByBackImpl<I> {
 
     fn spec_rfold<Acc, F>(self, init: Acc, f: F) -> Acc
     where
-        I: DoubleEndedIterator + ExactSizeIterator,
+        I: DoubleEndedIterator + ExactSizeIterator + [const] Destruct,
         F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
         Acc: [const] Destruct;
 }
@@ -351,6 +352,7 @@ where
     where
         F: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
         Acc: [const] Destruct,
+        I: [const] Destruct,
     {
         #[inline]
         const fn nth<I: Iterator>(
@@ -422,6 +424,7 @@ where
         Self: Sized,
         F: [const] FnMut(Acc, I::Item) -> Acc + [const] Destruct,
         Acc: [const] Destruct,
+        I: [const] Destruct,
     {
         #[inline]
         const fn nth_back<I: DoubleEndedIterator>(

@@ -37,9 +37,10 @@ impl<I: fmt::Debug, P> fmt::Debug for MapWhile<I, P> {
 #[stable(feature = "iter_map_while", since = "1.57.0")]
 impl<B, I: [const] Iterator, P> const Iterator for MapWhile<I, P>
 where
-    P: [const] FnMut(I::Item) -> Option<B>,
+    P: [const] FnMut(I::Item) -> Option<B> + [const] Destruct,
     I::Item: [const] Destruct,
     B: [const] Destruct,
+    I: [const] Destruct,
 {
     type Item = B;
 

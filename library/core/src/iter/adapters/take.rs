@@ -30,7 +30,7 @@ impl<I> Take<I> {
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<I> const Iterator for Take<I>
 where
-    I: [const] Iterator,
+    I: [const] Iterator + [const] Destruct,
     I::Item: [const] Destruct,
 {
     type Item = <I as Iterator>::Item;
@@ -80,7 +80,7 @@ where
     #[inline]
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
-        Fold: FnMut(Acc, Self::Item) -> R,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
         R: [const] Try<Output = Acc>,
     {
         const fn check<'a, T, Acc, R: Try<Output = Acc>>(
@@ -108,7 +108,6 @@ where
         Self: Sized,
         F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
         B: [const] Destruct,
-        I: [const] Destruct,
     {
         Self::spec_fold(self, init, f)
     }
@@ -291,7 +290,7 @@ where
     }
 
     #[inline]
-    default fn spec_for_each<F: FnMut(Self::Item)>(mut self, f: F) {
+    default fn spec_for_each<F: [const] FnMut(Self::Item) + [const] Destruct>(mut self, f: F) {
         // The default implementation would use a unit accumulator, so we can
         // avoid a stateful closure by folding over the remaining number
         // of items we wish to return instead.
@@ -315,6 +314,7 @@ where
 impl<I: [const] Iterator + [const] TrustedRandomAccess> const SpecTake for Take<I>
 where
     I::Item: [const] Destruct,
+    I: [const] Destruct,
 {
     #[inline]
     fn spec_fold<B, F>(mut self, init: B, mut f: F) -> B

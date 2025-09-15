@@ -403,7 +403,7 @@ where
     #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     const fn iter_fold<Acc: [const] Destruct, Fold>(self, mut acc: Acc, mut fold: Fold) -> Acc
     where
-        Fold: [const] FnMut(Acc, U) -> Acc,
+        Fold: [const] FnMut(Acc, U) -> Acc + [const] Destruct,
         I: [const] Iterator + [const] Destruct,
         I::Item: [const] Destruct,
     {
@@ -439,8 +439,9 @@ where
     where
         I: [const] Iterator + [const] Destruct,
         I::Item: [const] Destruct,
-        Fold: [const] FnMut(Acc, &mut U) -> R,
+        Fold: [const] FnMut(Acc, &mut U) -> R + [const] Destruct,
         R: [const] Try<Output = Acc>,
+        U: [const] Destruct,
     {
         #[inline]
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
@@ -480,7 +481,7 @@ where
     #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     const fn iter_rfold<Acc, Fold>(self, mut acc: Acc, mut fold: Fold) -> Acc
     where
-        Fold: [const] FnMut(Acc, U) -> Acc,
+        Fold: [const] FnMut(Acc, U) -> Acc + [const] Destruct,
         I: [const] DoubleEndedIterator + [const] Destruct,
         I::Item: [const] Destruct,
         Acc: [const] Destruct,
@@ -515,10 +516,11 @@ where
     #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
     const fn iter_try_rfold<Acc, Fold, R>(&mut self, mut acc: Acc, mut fold: Fold) -> R
     where
-        Fold: [const] FnMut(Acc, &mut U) -> R,
+        Fold: [const] FnMut(Acc, &mut U) -> R + [const] Destruct,
         I: [const] DoubleEndedIterator + [const] Destruct,
         I::Item: [const] Destruct,
         R: [const] Try<Output = Acc>,
+        U: [const] Destruct,
     {
         #[inline]
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
@@ -821,10 +823,14 @@ impl<T, const N: usize> const ConstSizeIntoIterator for &mut [T; N] {
 }
 
 #[inline]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 const fn and_then_or_clear<T, U>(
     opt: &mut Option<T>,
-    f: impl [const] FnOnce(&mut T) -> Option<U>,
-) -> Option<U> {
+    f: impl [const] FnOnce(&mut T) -> Option<U> + [const] Destruct,
+) -> Option<U>
+where
+    T: [const] Destruct,
+{
     let x = f(opt.as_mut()?);
     if x.is_none() {
         *opt = None;
@@ -867,9 +873,10 @@ impl<I: OneShot, F> OneShot for Map<I, F> {}
 impl<I: OneShot> OneShot for &mut I {}
 
 #[inline]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 const fn into_item<I>(inner: I) -> Option<I::Item>
 where
-    I: [const] IntoIterator<IntoIter: OneShot>,
+    I: [const] IntoIterator<IntoIter: OneShot + [const] Destruct>,
 {
     inner.into_iter().next()
 }
@@ -895,9 +902,11 @@ const fn try_flatten_one<I: IntoIterator<IntoIter: OneShot>, Acc, R: Try<Output 
 }
 
 #[inline]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 const fn advance_by_one<I>(n: NonZero<usize>, inner: I) -> Option<NonZero<usize>>
 where
-    I: [const] IntoIterator<IntoIter: OneShot>,
+    I: [const] IntoIterator<IntoIter: OneShot + [const] Destruct>,
+    I::Item: [const] Destruct,
 {
     match inner.into_iter().next() {
         Some(_) => NonZero::new(n.get() - 1),

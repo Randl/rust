@@ -76,8 +76,10 @@ pub(crate) trait UnstableSmallSortTypeImpl: Sized {
     fn small_sort_threshold() -> usize;
 
     /// Sorts `v` using strategies optimized for small sizes.
-    fn small_sort<F: [const] FnMut(&Self, &Self) -> bool>(v: &mut [Self], is_less: &mut F)
-    where
+    fn small_sort<F: [const] FnMut(&Self, &Self) -> bool + [const] Destruct>(
+        v: &mut [Self],
+        is_less: &mut F,
+    ) where
         Self: [const] Destruct;
 }
 
@@ -128,7 +130,10 @@ pub(crate) trait UnstableSmallSortFreezeTypeImpl: Sized + FreezeMarker {
 }
 
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] FreezeMarker> const UnstableSmallSortFreezeTypeImpl for T {
+impl<T: [const] FreezeMarker> const UnstableSmallSortFreezeTypeImpl for T
+where
+    T: [const] Destruct,
+{
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         if (size_of::<T>() * SMALL_SORT_GENERAL_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE {
@@ -142,7 +147,6 @@ impl<T: [const] FreezeMarker> const UnstableSmallSortFreezeTypeImpl for T {
     default fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
         F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
-        T: [const] Destruct,
     {
         if (size_of::<T>() * SMALL_SORT_GENERAL_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE {
             small_sort_general(v, is_less);
@@ -162,7 +166,10 @@ trait CopyMarker {}
 impl<T: [const] Copy> const CopyMarker for T {}
 
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] FreezeMarker + [const] CopyMarker> const UnstableSmallSortFreezeTypeImpl for T {
+impl<T: [const] FreezeMarker + [const] CopyMarker> const UnstableSmallSortFreezeTypeImpl for T
+where
+    T: [const] Destruct,
+{
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         if has_efficient_in_place_swap::<T>()
@@ -180,7 +187,6 @@ impl<T: [const] FreezeMarker + [const] CopyMarker> const UnstableSmallSortFreeze
     fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
         F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
-        Self: [const] Destruct,
     {
         if has_efficient_in_place_swap::<T>()
             && (size_of::<T>() * SMALL_SORT_NETWORK_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE

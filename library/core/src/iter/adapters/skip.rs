@@ -225,7 +225,7 @@ where
     fn try_rfold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
         R: [const] Try<Output = Acc>,
     {
         const fn check<T, Acc, R: Try<Output = Acc>>(

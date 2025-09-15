@@ -42,7 +42,8 @@ use crate::fmt;
 /// ```
 #[inline]
 #[stable(feature = "iter_from_fn", since = "1.34.0")]
-pub fn from_fn<T, F>(f: F) -> FromFn<F>
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+pub const fn from_fn<T, F>(f: F) -> FromFn<F>
 where
     F: FnMut() -> Option<T>,
 {
@@ -55,7 +56,7 @@ where
 /// See its documentation for more.
 ///
 /// [`iter::from_fn()`]: from_fn
-#[derive(Clone)]
+#[derive_const(Clone)]
 #[stable(feature = "iter_from_fn", since = "1.34.0")]
 pub struct FromFn<F>(F);
 

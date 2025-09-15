@@ -3163,6 +3163,8 @@ pub trait Iterator {
     /// assert_eq!(iter.next(), Some(-1));
     /// assert_eq!(iter.next_back(), Some(3));
     /// ```
+    #[inline]
+    #[stable(feature = "rust1", since = "1.0.0")]
     fn rposition<P>(&mut self, predicate: P) -> Option<usize>
     where
         P: [const] FnMut(Self::Item) -> bool + [const] Destruct,

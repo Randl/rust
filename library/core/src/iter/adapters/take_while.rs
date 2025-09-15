@@ -38,15 +38,14 @@ impl<I: fmt::Debug, P> fmt::Debug for TakeWhile<I, P> {
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<I: [const] Iterator, P> const Iterator for TakeWhile<I, P>
 where
-    P: [const] FnMut(&I::Item) -> bool,
+    P: [const] FnMut(&I::Item) -> bool + [const] Destruct,
+    I: [const] Destruct,
+    I::Item: [const] Destruct,
 {
     type Item = I::Item;
 
     #[inline]
-    fn next(&mut self) -> Option<I::Item>
-    where
-        I::Item: [const] Destruct,
-    {
+    fn next(&mut self) -> Option<I::Item> {
         if self.flag {
             None
         } else {
@@ -74,7 +73,7 @@ where
     fn try_fold<Acc, Fold, R>(&mut self, init: Acc, fold: Fold) -> R
     where
         Self: Sized,
-        Fold: [const] FnMut(Acc, Self::Item) -> R,
+        Fold: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
         R: [const] Try<Output = Acc>,
     {
         const fn check<'a, T, Acc, R: Try<Output = Acc>>(
