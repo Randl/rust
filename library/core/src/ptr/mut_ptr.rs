@@ -176,8 +176,7 @@ impl<T: PointeeSized> *mut T {
     /// [`with_exposed_provenance_mut`]: with_exposed_provenance_mut
     #[inline(always)]
     #[stable(feature = "exposed_provenance", since = "1.84.0")]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn expose_provenance(self) -> usize {
+    pub fn expose_provenance(self) -> usize {
         self.cast::<()>() as usize
     }
 
@@ -1282,8 +1281,7 @@ impl<T: PointeeSized> *mut T {
     #[stable(feature = "pointer_methods", since = "1.26.0")]
     #[inline(always)]
     #[track_caller]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const unsafe fn read_volatile(self) -> T
+    pub unsafe fn read_volatile(self) -> T
     where
         T: Sized,
     {
@@ -1457,8 +1455,7 @@ impl<T: PointeeSized> *mut T {
     #[stable(feature = "pointer_methods", since = "1.26.0")]
     #[inline(always)]
     #[track_caller]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const unsafe fn write_volatile(self, val: T)
+    pub unsafe fn write_volatile(self, val: T)
     where
         T: Sized,
     {
@@ -2010,8 +2007,7 @@ impl<T, const N: usize> *mut [T; N] {
 
 /// Pointer equality is by address, as produced by the [`<*mut T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: PointeeSized> const PartialEq for *mut T {
+impl<T: PointeeSized> PartialEq for *mut T {
     #[inline(always)]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn eq(&self, other: &*mut T) -> bool {
@@ -2022,12 +2018,11 @@ impl<T: PointeeSized> const PartialEq for *mut T {
 /// Pointer equality is an equivalence relation.
 #[stable(feature = "rust1", since = "1.0.0")]
 #[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
-impl<T: PointeeSized> const Eq for *mut T {}
+impl<T: PointeeSized> Eq for *mut T {}
 
 /// Pointer comparison is by address, as produced by the [`<*mut T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
-impl<T: PointeeSized> const Ord for *mut T {
+impl<T: PointeeSized> Ord for *mut T {
     #[inline]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn cmp(&self, other: &*mut T) -> Ordering {
@@ -2043,8 +2038,7 @@ impl<T: PointeeSized> const Ord for *mut T {
 
 /// Pointer comparison is by address, as produced by the [`<*mut T>::addr`](pointer::addr) method.
 #[stable(feature = "rust1", since = "1.0.0")]
-#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
-impl<T: PointeeSized> const PartialOrd for *mut T {
+impl<T: PointeeSized> PartialOrd for *mut T {
     #[inline(always)]
     #[allow(ambiguous_wide_pointer_comparisons)]
     fn partial_cmp(&self, other: &*mut T) -> Option<Ordering> {

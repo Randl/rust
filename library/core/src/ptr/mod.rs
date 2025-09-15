@@ -2104,8 +2104,7 @@ pub const unsafe fn write_unaligned<T>(dst: *mut T, src: T) {
 #[stable(feature = "volatile", since = "1.9.0")]
 #[track_caller]
 #[rustc_diagnostic_item = "ptr_read_volatile"]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const unsafe fn read_volatile<T>(src: *const T) -> T {
+pub unsafe fn read_volatile<T>(src: *const T) -> T {
     // SAFETY: the caller must uphold the safety contract for `volatile_load`.
     unsafe {
         ub_checks::assert_unsafe_precondition!(
@@ -2192,8 +2191,7 @@ pub const unsafe fn read_volatile<T>(src: *const T) -> T {
 #[stable(feature = "volatile", since = "1.9.0")]
 #[rustc_diagnostic_item = "ptr_write_volatile"]
 #[track_caller]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const unsafe fn write_volatile<T>(dst: *mut T, src: T) {
+pub unsafe fn write_volatile<T>(dst: *mut T, src: T) {
     // SAFETY: the caller must uphold the safety contract for `volatile_store`.
     unsafe {
         ub_checks::assert_unsafe_precondition!(
@@ -2560,28 +2558,24 @@ pub fn hash<T: PointeeSized, S: hash::Hasher>(hashee: *const T, into: &mut S) {
 }
 
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-#[rustc_const_unstable(feature = "const_cmp", issue = "143800")]
-impl<F: [const] FnPtr> const PartialEq for F {
+impl<F: FnPtr> PartialEq for F {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.addr() == other.addr()
     }
 }
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<F: [const] FnPtr> const Eq for F {}
+impl<F: FnPtr> Eq for F {}
 
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<F: [const] FnPtr> const PartialOrd for F {
+impl<F: FnPtr> PartialOrd for F {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.addr().partial_cmp(&other.addr())
     }
 }
 #[stable(feature = "fnptr_impls", since = "1.4.0")]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<F: [const] FnPtr> const Ord for F {
+impl<F: FnPtr> Ord for F {
     #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.addr().cmp(&other.addr())

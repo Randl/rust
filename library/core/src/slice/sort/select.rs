@@ -7,7 +7,6 @@
 //! better performance than one would get using heapsort as fallback.
 
 use crate::cfg_select;
-use crate::marker::Destruct;
 use crate::mem::{self, SizedTypeProperties};
 #[cfg(not(feature = "optimize_for_size"))]
 use crate::slice::sort::shared::pivot::choose_pivot;
@@ -15,15 +14,13 @@ use crate::slice::sort::shared::smallsort::insertion_sort_shift_left;
 use crate::slice::sort::unstable::quicksort::partition;
 
 /// Reorders the slice such that the element at `index` is at its final sorted position.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub(crate) const fn partition_at_index<T, F>(
+pub(crate) fn partition_at_index<T, F>(
     v: &mut [T],
     index: usize,
     mut is_less: F,
 ) -> (&mut [T], &mut T, &mut [T])
 where
-    F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
-    T: [const] Destruct,
+    F: FnMut(&T, &T) -> bool,
 {
     let len = v.len();
 
@@ -66,15 +63,13 @@ where
 const INSERTION_SORT_THRESHOLD: usize = 16;
 
 #[cfg(not(feature = "optimize_for_size"))]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn partition_at_index_loop<'a, T, F>(
+fn partition_at_index_loop<'a, T, F>(
     mut v: &'a mut [T],
     mut index: usize,
     mut ancestor_pivot: Option<&'a T>,
     is_less: &mut F,
 ) where
-    F: [const] FnMut(&T, &T) -> bool,
-    T: [const] Destruct,
+    F: FnMut(&T, &T) -> bool
 {
     // Limit the amount of iterations and fall back to fast deterministic selection to ensure O(n)
     // worst case running time. This limit needs to be constant, because using `ilog2(len)` like in
@@ -170,8 +165,7 @@ const fn max_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) ->
 
 /// Selection algorithm to select the k-th element from the slice in guaranteed O(n) time.
 /// This is essentially a quickselect that uses Tukey's Ninther for pivot selection
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn median_of_medians<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+fn median_of_medians<T, F:FnMut(&T, &T) -> bool>(
     mut v: &mut [T],
     is_less: &mut F,
     mut k: usize,
@@ -226,8 +220,7 @@ const fn median_of_medians<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool
 // Optimized for when `k` lies somewhere in the middle of the slice. Selects a pivot
 // as close as possible to the median of the slice. For more details on how the algorithm
 // operates, refer to the paper <https://drops.dagstuhl.de/opus/volltexte/2017/7612/pdf/LIPIcs-SEA-2017-24.pdf>.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn median_of_ninthers<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+fn median_of_ninthers<T:, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     is_less: &mut F,
 ) -> usize {

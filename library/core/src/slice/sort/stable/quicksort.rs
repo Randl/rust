@@ -14,8 +14,7 @@ use crate::{intrinsics, ptr};
 /// `limit` when initialized with `c*log(v.len())` for some c ensures we do not
 /// overflow the stack or go quadratic.
 #[inline(never)]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const fn quicksort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+pub fn quicksort<T, F: FnMut(&T, &T) -> bool>(
     mut v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     mut limit: u32,
@@ -86,8 +85,7 @@ pub const fn quicksort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
 /// If `is_less` is not a strict total order or panics, `scratch.len() < v.len()`,
 /// or `pivot_pos >= v.len()`, the result and `v`'s state is sound but unspecified.
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn stable_partition<T, F: [const] FnMut(&T, &T) -> bool>(
+fn stable_partition<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     pivot_pos: usize,

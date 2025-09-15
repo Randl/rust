@@ -30,8 +30,7 @@ pub(crate) trait StableSmallSortTypeImpl: Sized {
     );
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] Destruct> const StableSmallSortTypeImpl for T {
+impl<T> StableSmallSortTypeImpl for T {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         // Optimal number of comparisons, and good perf.
@@ -39,7 +38,7 @@ impl<T: [const] Destruct> const StableSmallSortTypeImpl for T {
     }
 
     #[inline(always)]
-    default fn small_sort<F: [const] FnMut(&T, &T) -> bool>(
+    default fn small_sort<F: FnMut(&T, &T) -> bool>(
         v: &mut [T],
         _scratch: &mut [MaybeUninit<T>],
         is_less: &mut F,
@@ -50,15 +49,14 @@ impl<T: [const] Destruct> const StableSmallSortTypeImpl for T {
     }
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] FreezeMarker + [const] Destruct> const StableSmallSortTypeImpl for T {
+impl<T: FreezeMarker> StableSmallSortTypeImpl for T {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         SMALL_SORT_GENERAL_THRESHOLD
     }
 
     #[inline(always)]
-    fn small_sort<F: [const] FnMut(&T, &T) -> bool>(
+    fn small_sort<F: FnMut(&T, &T) -> bool>(
         v: &mut [T],
         scratch: &mut [MaybeUninit<T>],
         is_less: &mut F,
@@ -83,8 +81,7 @@ pub(crate) trait UnstableSmallSortTypeImpl: Sized {
         Self: [const] Destruct;
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T> const UnstableSmallSortTypeImpl for T {
+impl<T> UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         SMALL_SORT_FALLBACK_THRESHOLD
@@ -93,15 +90,13 @@ impl<T> const UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     default fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
-        Self: [const] Destruct,
+        F: FnMut(&T, &T) -> bool,
     {
         small_sort_fallback(v, is_less);
     }
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] FreezeMarker> const UnstableSmallSortTypeImpl for T {
+impl<T: FreezeMarker> UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         <T as UnstableSmallSortFreezeTypeImpl>::small_sort_threshold()
@@ -110,7 +105,7 @@ impl<T: [const] FreezeMarker> const UnstableSmallSortTypeImpl for T {
     #[inline(always)]
     fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+        F: FnMut(&T, &T) -> bool,
     {
         <T as UnstableSmallSortFreezeTypeImpl>::small_sort(v, is_less);
     }
@@ -129,10 +124,7 @@ pub(crate) trait UnstableSmallSortFreezeTypeImpl: Sized + FreezeMarker {
     );
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] FreezeMarker> const UnstableSmallSortFreezeTypeImpl for T
-where
-    T: [const] Destruct,
+impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T
 {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
@@ -146,7 +138,7 @@ where
     #[inline(always)]
     default fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+        F: FnMut(&T, &T) -> bool,
     {
         if (size_of::<T>() * SMALL_SORT_GENERAL_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE {
             small_sort_general(v, is_less);
@@ -165,10 +157,7 @@ trait CopyMarker {}
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<T: [const] Copy> const CopyMarker for T {}
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T: [const] FreezeMarker + [const] CopyMarker> const UnstableSmallSortFreezeTypeImpl for T
-where
-    T: [const] Destruct,
+impl<T: FreezeMarker + CopyMarker> UnstableSmallSortFreezeTypeImpl for T
 {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
@@ -186,7 +175,7 @@ where
     #[inline(always)]
     fn small_sort<F>(v: &mut [T], is_less: &mut F)
     where
-        F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+        F: FnMut(&T, &T) -> bool,
     {
         if has_efficient_in_place_swap::<T>()
             && (size_of::<T>() * SMALL_SORT_NETWORK_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE
@@ -226,8 +215,7 @@ const SMALL_SORT_NETWORK_SCRATCH_LEN: usize = SMALL_SORT_NETWORK_THRESHOLD;
 /// within this limit.
 const MAX_STACK_ARRAY_SIZE: usize = 4096;
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn small_sort_fallback<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+fn small_sort_fallback<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     is_less: &mut F,
 ) {
@@ -236,10 +224,9 @@ const fn small_sort_fallback<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bo
     }
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn small_sort_general<
-    T: [const] FreezeMarker + [const] Destruct,
-    F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+fn small_sort_general<
+    T: FreezeMarker,
+    F: FnMut(&T, &T) -> bool,
 >(
     v: &mut [T],
     is_less: &mut F,
@@ -258,10 +245,9 @@ const fn small_sort_general<
     small_sort_general_with_scratch(v, scratch, is_less);
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn small_sort_general_with_scratch<
-    T: FreezeMarker + [const] Destruct,
-    F: [const] FnMut(&T, &T) -> bool,
+fn small_sort_general_with_scratch<
+    T: FreezeMarker,
+    F: FnMut(&T, &T) -> bool,
 >(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
@@ -354,11 +340,10 @@ impl<T> const Drop for CopyOnDrop<T> {
     }
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn small_sort_network<T, F>(v: &mut [T], is_less: &mut F)
+fn small_sort_network<T, F>(v: &mut [T], is_less: &mut F)
 where
-    T: [const] FreezeMarker + [const] Destruct,
-    F: [const] FnMut(&T, &T) -> bool + [const] Destruct,
+    T: FreezeMarker,
+    F: FnMut(&T, &T) -> bool,
 {
     // This implementation is tuned to be efficient for integer types.
 
@@ -589,8 +574,7 @@ where
 ///
 /// # Safety
 /// begin < tail and p must be valid and initialized for all begin <= p <= tail.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const unsafe fn insert_tail<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+unsafe fn insert_tail<T, F: FnMut(&T, &T) -> bool>(
     begin: *mut T,
     tail: *mut T,
     is_less: &mut F,
@@ -632,8 +616,7 @@ const unsafe fn insert_tail<T: [const] Destruct, F: [const] FnMut(&T, &T) -> boo
 }
 
 /// Sort `v` assuming `v[..offset]` is already sorted.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const fn insertion_sort_shift_left<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+pub fn insertion_sort_shift_left<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     offset: usize,
     is_less: &mut F,
@@ -717,8 +700,7 @@ pub const unsafe fn sort4_stable<T, F: [const] FnMut(&T, &T) -> bool>(
 /// SAFETY: The caller MUST guarantee that `v_base` is valid for 8 reads and
 /// writes, `scratch_base` and `dst` MUST be valid for 8 writes. The result will
 /// be stored in `dst[0..8]`.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const unsafe fn sort8_stable<T: FreezeMarker, F: [const] FnMut(&T, &T) -> bool>(
+unsafe fn sort8_stable<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
     v_base: *mut T,
     dst: *mut T,
     scratch_base: *mut T,
@@ -817,8 +799,7 @@ const unsafe fn merge_down<T, F: [const] FnMut(&T, &T) -> bool>(
 ///
 /// Note that T must be Freeze, the comparison function is evaluated on outdated
 /// temporary 'copies' that may not end up in the final array.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const unsafe fn bidirectional_merge<T: FreezeMarker, F: [const] FnMut(&T, &T) -> bool>(
+unsafe fn bidirectional_merge<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
     v: &[T],
     dst: *mut T,
     is_less: &mut F,

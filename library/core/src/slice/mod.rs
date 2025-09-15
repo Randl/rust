@@ -3122,10 +3122,9 @@ impl<T> [T] {
     /// [total order]: https://en.wikipedia.org/wiki/Total_order
     #[stable(feature = "sort_unstable", since = "1.20.0")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn sort_unstable(&mut self)
+    pub fn sort_unstable(&mut self)
     where
-        T: [const] Ord + [const] Destruct,
+        T: Ord,
     {
         sort::unstable::sort(self, &mut T::lt);
     }
@@ -3178,11 +3177,9 @@ impl<T> [T] {
     /// [total order]: https://en.wikipedia.org/wiki/Total_order
     #[stable(feature = "sort_unstable", since = "1.20.0")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn sort_unstable_by<F>(&mut self, mut compare: F)
+    pub fn sort_unstable_by<F>(&mut self, mut compare: F)
     where
-        T: [const] Destruct,
-        F: FnMut(&T, &T) -> Ordering + [const] Destruct,
+        F: FnMut(&T, &T) -> Ordering,
     {
         sort::unstable::sort(self, &mut |a, b| compare(a, b) == Ordering::Less);
     }
@@ -3232,12 +3229,10 @@ impl<T> [T] {
     /// [total order]: https://en.wikipedia.org/wiki/Total_order
     #[stable(feature = "sort_unstable", since = "1.20.0")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn sort_unstable_by_key<K, F>(&mut self, mut f: F)
+    pub fn sort_unstable_by_key<K, F>(&mut self, mut f: F)
     where
-        T: [const] Destruct,
-        F: [const] FnMut(&T) -> K + [const] Destruct,
-        K: [const] Ord,
+        F: FnMut(&T) -> K + Destruct,
+        K: Ord,
     {
         sort::unstable::sort(self, &mut |a, b| f(a).lt(&f(b)));
     }
@@ -3297,10 +3292,9 @@ impl<T> [T] {
     /// [total order]: https://en.wikipedia.org/wiki/Total_order
     #[stable(feature = "slice_select_nth_unstable", since = "1.49.0")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn select_nth_unstable(&mut self, index: usize) -> (&mut [T], &mut T, &mut [T])
+    pub fn select_nth_unstable(&mut self, index: usize) -> (&mut [T], &mut T, &mut [T])
     where
-        T: [const] Ord + [const] Destruct,
+        T: Ord,
     {
         sort::select::partition_at_index(self, index, T::lt)
     }
@@ -3363,15 +3357,13 @@ impl<T> [T] {
     /// [total order]: https://en.wikipedia.org/wiki/Total_order
     #[stable(feature = "slice_select_nth_unstable", since = "1.49.0")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn select_nth_unstable_by<F>(
+    pub fn select_nth_unstable_by<F>(
         &mut self,
         index: usize,
         mut compare: F,
     ) -> (&mut [T], &mut T, &mut [T])
     where
-        F: FnMut(&T, &T) -> Ordering + [const] Destruct,
-        T: [const] Destruct,
+        F: FnMut(&T, &T) -> Ordering,
     {
         sort::select::partition_at_index(self, index, |a: &T, b: &T| compare(a, b) == Less)
     }
@@ -3432,16 +3424,14 @@ impl<T> [T] {
     /// [total order]: https://en.wikipedia.org/wiki/Total_order
     #[stable(feature = "slice_select_nth_unstable", since = "1.49.0")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn select_nth_unstable_by_key<K, F>(
+    pub fn select_nth_unstable_by_key<K, F>(
         &mut self,
         index: usize,
         mut f: F,
     ) -> (&mut [T], &mut T, &mut [T])
     where
-        T: [const] Destruct,
-        F: [const] FnMut(&T) -> K + [const] Destruct,
-        K: [const] Ord,
+        F: FnMut(&T) -> K,
+        K: Ord,
     {
         sort::select::partition_at_index(self, index, |a: &T, b: &T| f(a).lt(&f(b)))
     }
@@ -5127,8 +5117,7 @@ impl [f32] {
     /// ```
     #[unstable(feature = "sort_floats", issue = "93396")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn sort_floats(&mut self) {
+    pub fn sort_floats(&mut self) {
         self.sort_unstable_by(f32::total_cmp);
     }
 }
@@ -5156,8 +5145,7 @@ impl [f64] {
     /// ```
     #[unstable(feature = "sort_floats", issue = "93396")]
     #[inline]
-    #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub const fn sort_floats(&mut self) {
+    pub fn sort_floats(&mut self) {
         self.sort_unstable_by(f64::total_cmp);
     }
 }

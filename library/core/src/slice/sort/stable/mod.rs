@@ -2,7 +2,6 @@
 
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 use crate::cmp;
-use crate::marker::Destruct;
 use crate::mem::{MaybeUninit, SizedTypeProperties};
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 use crate::slice::sort::shared::smallsort::{
@@ -27,11 +26,10 @@ pub(crate) mod tiny;
 /// Upholds all safety properties outlined here:
 /// <https://github.com/Voultapher/sort-research-rs/blob/main/writeup/sort_safety/text.md>
 #[inline(always)]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const fn sort<
-    T: [const] Destruct,
-    F: [const] FnMut(&T, &T) -> bool,
-    BufT: [const] BufGuard<T> + [const] Destruct,
+pub fn sort<
+    T,
+    F: FnMut(&T, &T) -> bool,
+    BufT: BufGuard<T>,
 >(
     v: &mut [T],
     is_less: &mut F,
@@ -100,11 +98,10 @@ pub const fn sort<
 /// inlined insertion sort i-cache footprint remains minimal.
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 #[inline(never)]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn driftsort_main<
-    T: [const] Destruct,
-    F: [const] FnMut(&T, &T) -> bool,
-    BufT: [const] BufGuard<T> + [const] Destruct,
+fn driftsort_main<
+    T,
+    F:  FnMut(&T, &T) -> bool,
+    BufT: BufGuard<T>,
 >(
     v: &mut [T],
     is_less: &mut F,

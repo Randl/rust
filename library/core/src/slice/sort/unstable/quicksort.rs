@@ -1,6 +1,5 @@
 //! This module contains an unstable quicksort and two partition implementations.
 
-use crate::marker::Destruct;
 #[cfg(not(feature = "optimize_for_size"))]
 use crate::mem;
 use crate::mem::ManuallyDrop;
@@ -19,15 +18,13 @@ use crate::{cfg_select, intrinsics, ptr};
 /// `limit` is the number of allowed imbalanced partitions before switching to `heapsort`. If zero,
 /// this function will immediately switch to heapsort.
 #[cfg(not(feature = "optimize_for_size"))]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub(crate) const fn quicksort<'a, T, F>(
+pub(crate) fn quicksort<'a, T, F>(
     mut v: &'a mut [T],
     mut ancestor_pivot: Option<&'a T>,
     mut limit: u32,
     is_less: &mut F,
 ) where
-    T: [const] Destruct,
-    F: [const] FnMut(&T, &T) -> bool,
+    F: FnMut(&T, &T) -> bool,
 {
     loop {
         if v.len() <= T::small_sort_threshold() {
@@ -93,8 +90,7 @@ pub(crate) const fn quicksort<'a, T, F>(
 /// unspecified. All original elements will remain in `v` and any possible modifications via
 /// interior mutability will be observable. Same is true if `is_less` panics or `v.len()`
 /// exceeds `scratch.len()`.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub(crate) const fn partition<T, F>(v: &mut [T], pivot: usize, is_less: &mut F) -> usize
+pub(crate) fn partition<T, F>(v: &mut [T], pivot: usize, is_less: &mut F) -> usize
 where
     F: FnMut(&T, &T) -> bool,
 {

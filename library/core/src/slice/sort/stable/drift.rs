@@ -18,8 +18,7 @@ use crate::{cmp, intrinsics};
 ///
 /// This is the main loop for driftsort, which uses powersort's heuristic to
 /// determine in which order to merge runs, see below for details.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const fn sort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+pub  fn sort<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     eager_sort: bool,
@@ -190,8 +189,7 @@ const fn sqrt_approx(n: usize) -> usize {
 
 // Lazy logical runs as in Glidesort.
 #[inline(always)]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn logical_merge<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+fn logical_merge<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     left: DriftsortRun,
@@ -226,8 +224,7 @@ const fn logical_merge<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
 /// run. If not, the result depends on the value of `eager_sort`. If it is true,
 /// then a sorted run of length `T::SMALL_SORT_THRESHOLD` is returned, and if it
 /// is false an unsorted run of length `min_good_run_len` is returned.
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn create_run<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+fn create_run<T:, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     min_good_run_len: usize,

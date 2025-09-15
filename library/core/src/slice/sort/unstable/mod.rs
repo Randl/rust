@@ -1,6 +1,5 @@
 //! This module contains the entry points for `slice::sort_unstable`.
 
-use crate::marker::Destruct;
 use crate::mem::SizedTypeProperties;
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 use crate::slice::sort::shared::find_existing_run;
@@ -18,8 +17,7 @@ pub(crate) mod quicksort;
 /// Upholds all safety properties outlined here:
 /// <https://github.com/Voultapher/sort-research-rs/blob/main/writeup/sort_safety/text.md>
 #[inline(always)]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-pub const fn sort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+pub fn sort<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     is_less: &mut F,
 ) {
@@ -63,11 +61,9 @@ pub const fn sort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
 /// inlined insertion sort i-cache footprint remains minimal.
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 #[inline(never)]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn ipnsort<T, F>(v: &mut [T], is_less: &mut F)
+fn ipnsort<T, F>(v: &mut [T], is_less: &mut F)
 where
-    F: [const] FnMut(&T, &T) -> bool,
-    T: [const] Destruct,
+    F: FnMut(&T, &T) -> bool,
 {
     let len = v.len();
     let (run_len, was_reversed) = find_existing_run(v, is_less);
