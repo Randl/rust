@@ -26,14 +26,7 @@ pub(crate) mod tiny;
 /// Upholds all safety properties outlined here:
 /// <https://github.com/Voultapher/sort-research-rs/blob/main/writeup/sort_safety/text.md>
 #[inline(always)]
-pub fn sort<
-    T,
-    F: FnMut(&T, &T) -> bool,
-    BufT: BufGuard<T>,
->(
-    v: &mut [T],
-    is_less: &mut F,
-) {
+pub fn sort<T, F: FnMut(&T, &T) -> bool, BufT: BufGuard<T>>(v: &mut [T], is_less: &mut F) {
     // Arrays of zero-sized types are always all-equal, and thus sorted.
     if T::IS_ZST {
         return;
@@ -98,14 +91,7 @@ pub fn sort<
 /// inlined insertion sort i-cache footprint remains minimal.
 #[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
 #[inline(never)]
-fn driftsort_main<
-    T,
-    F:  FnMut(&T, &T) -> bool,
-    BufT: BufGuard<T>,
->(
-    v: &mut [T],
-    is_less: &mut F,
-) {
+fn driftsort_main<T, F: FnMut(&T, &T) -> bool, BufT: BufGuard<T>>(v: &mut [T], is_less: &mut F) {
     // By allocating n elements of memory we can ensure the entire input can
     // be sorted using stable quicksort, which allows better performance on
     // random and low-cardinality distributions. However, we still want to

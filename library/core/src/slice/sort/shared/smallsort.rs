@@ -124,8 +124,7 @@ pub(crate) trait UnstableSmallSortFreezeTypeImpl: Sized + FreezeMarker {
     );
 }
 
-impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T
-{
+impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T {
     #[inline(always)]
     default fn small_sort_threshold() -> usize {
         if (size_of::<T>() * SMALL_SORT_GENERAL_SCRATCH_LEN) <= MAX_STACK_ARRAY_SIZE {
@@ -157,8 +156,7 @@ trait CopyMarker {}
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<T: [const] Copy> const CopyMarker for T {}
 
-impl<T: FreezeMarker + CopyMarker> UnstableSmallSortFreezeTypeImpl for T
-{
+impl<T: FreezeMarker + CopyMarker> UnstableSmallSortFreezeTypeImpl for T {
     #[inline(always)]
     fn small_sort_threshold() -> usize {
         if has_efficient_in_place_swap::<T>()
@@ -215,22 +213,13 @@ const SMALL_SORT_NETWORK_SCRATCH_LEN: usize = SMALL_SORT_NETWORK_THRESHOLD;
 /// within this limit.
 const MAX_STACK_ARRAY_SIZE: usize = 4096;
 
-fn small_sort_fallback<T, F: FnMut(&T, &T) -> bool>(
-    v: &mut [T],
-    is_less: &mut F,
-) {
+fn small_sort_fallback<T, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) {
     if v.len() >= 2 {
         insertion_sort_shift_left(v, 1, is_less);
     }
 }
 
-fn small_sort_general<
-    T: FreezeMarker,
-    F: FnMut(&T, &T) -> bool,
->(
-    v: &mut [T],
-    is_less: &mut F,
-) {
+fn small_sort_general<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) {
     let mut stack_array = MaybeUninit::<[T; SMALL_SORT_GENERAL_SCRATCH_LEN]>::uninit();
 
     // SAFETY: The memory is backed by `stack_array`, and the operation is safe as long as the len
@@ -245,10 +234,7 @@ fn small_sort_general<
     small_sort_general_with_scratch(v, scratch, is_less);
 }
 
-fn small_sort_general_with_scratch<
-    T: FreezeMarker,
-    F: FnMut(&T, &T) -> bool,
->(
+fn small_sort_general_with_scratch<T: FreezeMarker, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     is_less: &mut F,
@@ -574,11 +560,7 @@ where
 ///
 /// # Safety
 /// begin < tail and p must be valid and initialized for all begin <= p <= tail.
-unsafe fn insert_tail<T, F: FnMut(&T, &T) -> bool>(
-    begin: *mut T,
-    tail: *mut T,
-    is_less: &mut F,
-) {
+unsafe fn insert_tail<T, F: FnMut(&T, &T) -> bool>(begin: *mut T, tail: *mut T, is_less: &mut F) {
     // SAFETY: see individual comments.
     unsafe {
         // SAFETY: in-bounds as tail > begin.

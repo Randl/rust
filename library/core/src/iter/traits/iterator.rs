@@ -4129,27 +4129,36 @@ pub trait Iterator {
     }
 }
 
-trait SpecIterEq<B: Iterator>: Iterator {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+const trait SpecIterEq<B: Iterator>: Iterator {
     fn spec_iter_eq<F>(self, b: B, f: F) -> bool
     where
-        F: FnMut(Self::Item, <B as Iterator>::Item) -> ControlFlow<()>;
+        F: [const] FnMut(Self::Item, <B as Iterator>::Item) -> ControlFlow<()> + [const] Destruct;
 }
 
-impl<A: Iterator, B: Iterator> SpecIterEq<B> for A {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<A: [const] Iterator + [const] Destruct, B: [const] Iterator + [const] Destruct> const
+    SpecIterEq<B> for A
+{
     #[inline]
     default fn spec_iter_eq<F>(self, b: B, f: F) -> bool
     where
-        F: FnMut(Self::Item, <B as Iterator>::Item) -> ControlFlow<()>,
+        F: [const] FnMut(Self::Item, <B as Iterator>::Item) -> ControlFlow<()> + [const] Destruct,
     {
         iter_eq(self, b, f)
     }
 }
 
-impl<A: Iterator + TrustedLen, B: Iterator + TrustedLen> SpecIterEq<B> for A {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl<
+    A: [const] Iterator + [const] Destruct + TrustedLen,
+    B: [const] Iterator + [const] Destruct + TrustedLen,
+> const SpecIterEq<B> for A
+{
     #[inline]
     fn spec_iter_eq<F>(self, b: B, f: F) -> bool
     where
-        F: FnMut(Self::Item, <B as Iterator>::Item) -> ControlFlow<()>,
+        F: [const] FnMut(Self::Item, <B as Iterator>::Item) -> ControlFlow<()> + [const] Destruct,
     {
         // we *can't* short-circuit if:
         match (self.size_hint(), b.size_hint()) {
@@ -4211,11 +4220,11 @@ where
 }
 
 #[inline]
-fn iter_eq<A, B, F>(a: A, b: B, f: F) -> bool
+const fn iter_eq<A, B, F>(a: A, b: B, f: F) -> bool
 where
-    A: Iterator,
-    B: Iterator,
-    F: FnMut(A::Item, B::Item) -> ControlFlow<()>,
+    A: [const] Iterator + [const] Destruct,
+    B: [const] Iterator + [const] Destruct,
+    F: [const] FnMut(A::Item, B::Item) -> ControlFlow<()>,
 {
     iter_compare(a, b, f).continue_value().is_some_and(|ord| ord == Ordering::Equal)
 }

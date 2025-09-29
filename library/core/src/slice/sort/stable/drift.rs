@@ -18,7 +18,7 @@ use crate::{cmp, intrinsics};
 ///
 /// This is the main loop for driftsort, which uses powersort's heuristic to
 /// determine in which order to merge runs, see below for details.
-pub  fn sort<T, F: FnMut(&T, &T) -> bool>(
+pub fn sort<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     eager_sort: bool,
@@ -224,7 +224,7 @@ fn logical_merge<T, F: FnMut(&T, &T) -> bool>(
 /// run. If not, the result depends on the value of `eager_sort`. If it is true,
 /// then a sorted run of length `T::SMALL_SORT_THRESHOLD` is returned, and if it
 /// is false an unsorted run of length `min_good_run_len` is returned.
-fn create_run<T:, F: FnMut(&T, &T) -> bool>(
+fn create_run<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     min_good_run_len: usize,

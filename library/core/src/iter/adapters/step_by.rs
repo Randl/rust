@@ -261,13 +261,17 @@ where
     default fn spec_size_hint(&self) -> (usize, Option<usize>) {
         #[inline]
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-        const fn first_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize + [const] Destruct {
+        const fn first_size(
+            step: NonZero<usize>,
+        ) -> impl [const] Fn(usize) -> usize + [const] Destruct {
             move |n| if n == 0 { 0 } else { 1 + (n - 1) / step }
         }
 
         #[inline]
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-        const fn other_size(step: NonZero<usize>) -> impl [const] Fn(usize) -> usize + [const] Destruct {
+        const fn other_size(
+            step: NonZero<usize>,
+        ) -> impl [const] Fn(usize) -> usize + [const] Destruct {
             move |n| n / step
         }
 

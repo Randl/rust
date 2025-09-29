@@ -1,6 +1,5 @@
 //! This module contains a stable quicksort and partition implementation.
 
-use crate::marker::Destruct;
 use crate::mem::{ManuallyDrop, MaybeUninit};
 use crate::slice::sort::shared::FreezeMarker;
 use crate::slice::sort::shared::pivot::choose_pivot;

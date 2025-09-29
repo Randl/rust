@@ -69,7 +69,7 @@ fn partition_at_index_loop<'a, T, F>(
     mut ancestor_pivot: Option<&'a T>,
     is_less: &mut F,
 ) where
-    F: FnMut(&T, &T) -> bool
+    F: FnMut(&T, &T) -> bool,
 {
     // Limit the amount of iterations and fall back to fast deterministic selection to ensure O(n)
     // worst case running time. This limit needs to be constant, because using `ilog2(len)` like in
@@ -165,11 +165,7 @@ const fn max_index<T, F: FnMut(&T, &T) -> bool>(slice: &[T], is_less: &mut F) ->
 
 /// Selection algorithm to select the k-th element from the slice in guaranteed O(n) time.
 /// This is essentially a quickselect that uses Tukey's Ninther for pivot selection
-fn median_of_medians<T, F:FnMut(&T, &T) -> bool>(
-    mut v: &mut [T],
-    is_less: &mut F,
-    mut k: usize,
-) {
+fn median_of_medians<T, F: FnMut(&T, &T) -> bool>(mut v: &mut [T], is_less: &mut F, mut k: usize) {
     // Since this function isn't public, it should never be called with an out-of-bounds index.
     debug_assert!(k < v.len());
 
@@ -220,10 +216,7 @@ fn median_of_medians<T, F:FnMut(&T, &T) -> bool>(
 // Optimized for when `k` lies somewhere in the middle of the slice. Selects a pivot
 // as close as possible to the median of the slice. For more details on how the algorithm
 // operates, refer to the paper <https://drops.dagstuhl.de/opus/volltexte/2017/7612/pdf/LIPIcs-SEA-2017-24.pdf>.
-fn median_of_ninthers<T:, F: FnMut(&T, &T) -> bool>(
-    v: &mut [T],
-    is_less: &mut F,
-) -> usize {
+fn median_of_ninthers<T, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) -> usize {
     // use `saturating_mul` so the multiplication doesn't overflow on 16-bit platforms.
     let frac = if v.len() <= 1024 {
         v.len() / 12
