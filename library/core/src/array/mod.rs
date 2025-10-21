@@ -917,6 +917,7 @@ const fn try_from_fn_erased<T, R>(
 ) -> ControlFlow<R::Residual>
 where
     R: [const] Try<Output = T>,
+    T: [const] Destruct,
 {
     let mut guard = Guard { array_mut: buffer, initialized: 0 };
 
@@ -969,7 +970,7 @@ impl<T> Guard<'_, T> {
 }
 
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T> const Drop for Guard<'_, T> {
+impl<T: [const] Destruct> const Drop for Guard<'_, T> {
     #[inline]
     fn drop(&mut self) {
         debug_assert!(self.initialized <= self.array_mut.len());

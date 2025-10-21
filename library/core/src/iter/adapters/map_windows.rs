@@ -157,7 +157,10 @@ impl<T, const N: usize> Buffer<T, N> {
     /// the back end.
 
     #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    const fn push(&mut self, next: T) {
+    const fn push(&mut self, next: T)
+    where
+        T: [const] Destruct,
+    {
         let buffer_mut_ptr = self.buffer_mut_ptr();
         debug_assert!(self.start + N <= 2 * N);
 
@@ -238,7 +241,7 @@ where
 }
 
 #[rustc_const_unstable(feature = "const_destruct", issue = "133214")]
-impl<T, const N: usize> const Drop for Buffer<T, N> {
+impl<T: [const] Destruct, const N: usize> const Drop for Buffer<T, N> {
     fn drop(&mut self) {
         // SAFETY: our invariant guarantees that N elements starting from
         // `self.start` are initialized. We drop them here.

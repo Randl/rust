@@ -24,10 +24,12 @@ pub struct IntoIter<T, const N: usize> {
 
 impl<T, const N: usize> IntoIter<T, N> {
     #[inline]
+    #[rustc_const_unstable(feature = "const_convert", issue = "143773")]
     const fn unsize(&self) -> &InnerUnsized<T> {
         self.inner.deref()
     }
     #[inline]
+    #[rustc_const_unstable(feature = "const_convert", issue = "143773")]
     const fn unsize_mut(&mut self) -> &mut InnerUnsized<T> {
         self.inner.deref_mut()
     }
@@ -238,7 +240,10 @@ impl<T, const N: usize> const Default for IntoIter<T, N> {
 
 #[stable(feature = "array_value_iter_impls", since = "1.40.0")]
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T, const N: usize> const Iterator for IntoIter<T, N> {
+impl<T, const N: usize> const Iterator for IntoIter<T, N>
+where
+    T: [const] Destruct,
+{
     type Item = T;
 
     #[inline]
@@ -255,7 +260,6 @@ impl<T, const N: usize> const Iterator for IntoIter<T, N> {
     fn fold<Acc, Fold>(mut self, init: Acc, fold: Fold) -> Acc
     where
         Fold: [const] FnMut(Acc, Self::Item) -> Acc,
-        T: [const] Destruct,
         Acc: [const] Destruct,
     {
         self.unsize_mut().fold(init, fold)
@@ -282,7 +286,7 @@ impl<T, const N: usize> const Iterator for IntoIter<T, N> {
     }
 
     #[inline]
-    fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> where {
         self.unsize_mut().advance_by(n)
     }
 

@@ -260,8 +260,7 @@ fn create_run<T, F: FnMut(&T, &T) -> bool>(
     }
 }
 
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-const fn stable_quicksort<T: [const] Destruct, F: [const] FnMut(&T, &T) -> bool>(
+fn stable_quicksort<T, F: FnMut(&T, &T) -> bool>(
     v: &mut [T],
     scratch: &mut [MaybeUninit<T>],
     is_less: &mut F,

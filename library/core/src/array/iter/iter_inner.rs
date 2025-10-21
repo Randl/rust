@@ -17,7 +17,10 @@ trait PartialDrop {
 }
 
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T> const PartialDrop for [MaybeUninit<T>] {
+impl<T> const PartialDrop for [MaybeUninit<T>]
+where
+    T: [const] Destruct,
+{
     unsafe fn partial_drop(&mut self, alive: IndexRange) {
         // SAFETY: We know that all elements within `alive` are properly initialized.
         unsafe { self.get_unchecked_mut(alive).assume_init_drop() }
@@ -25,7 +28,7 @@ impl<T> const PartialDrop for [MaybeUninit<T>] {
 }
 
 #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-impl<T, const N: usize> const PartialDrop for [MaybeUninit<T>; N] {
+impl<T: [const] Destruct, const N: usize> const PartialDrop for [MaybeUninit<T>; N] {
     unsafe fn partial_drop(&mut self, alive: IndexRange) {
         let slice: &mut [MaybeUninit<T>] = self;
         // SAFETY: Initialized elements in the array are also initialized in the slice.
@@ -195,7 +198,10 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
 
     #[inline]
     #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub(super) const fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    pub(super) const fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>>
+    where
+        T: [const] Destruct,
+    {
         // This also moves the start, which marks them as conceptually "dropped",
         // so if anything goes bad then our drop impl won't double-free them.
         let range_to_drop = self.alive.take_prefix(n);
@@ -258,7 +264,10 @@ impl<T> PolymorphicIter<[MaybeUninit<T>]> {
 
     #[inline]
     #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-    pub(super) const fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    pub(super) const fn advance_back_by(&mut self, n: usize) -> Result<(), NonZero<usize>>
+    where
+        T: [const] Destruct,
+    {
         // This also moves the end, which marks them as conceptually "dropped",
         // so if anything goes bad then our drop impl won't double-free them.
         let range_to_drop = self.alive.take_suffix(n);

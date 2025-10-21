@@ -83,7 +83,7 @@ where
         }
 
         #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
-        impl<T> const Drop for Guard<'_, T> {
+        impl<T: [const] Destruct> const Drop for Guard<'_, T> {
             #[inline]
             fn drop(&mut self) {
                 if const { crate::mem::needs_drop::<T>() } {

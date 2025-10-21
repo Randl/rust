@@ -537,9 +537,11 @@ where
 /// ```
 #[doc(fake_variadic)] // the other implementations are below.
 #[stable(feature = "from_iterator_for_tuple", since = "1.79.0")]
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 impl<T, ExtendT> const FromIterator<(T,)> for (ExtendT,)
 where
-    ExtendT: Default + Extend<T>,
+    ExtendT: [const] Default + [const] Extend<T>,
+    T: [const] Destruct,
 {
     fn from_iter<Iter: [const] IntoIterator<Item = (T,)>>(iter: Iter) -> Self {
         let mut res = ExtendT::default();

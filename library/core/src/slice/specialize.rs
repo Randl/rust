@@ -28,7 +28,8 @@ impl<T: [const] Copy + [const] Destruct> const SpecFill<T> for [T] {
     }
 }
 
-impl SpecFill<u8> for [u8] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const SpecFill<u8> for [u8] {
     fn spec_fill(&mut self, value: u8) {
         // SAFETY: The pointer is derived from a reference, so it's writable.
         unsafe {
@@ -37,7 +38,8 @@ impl SpecFill<u8> for [u8] {
     }
 }
 
-impl SpecFill<i8> for [i8] {
+#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+impl const SpecFill<i8> for [i8] {
     fn spec_fill(&mut self, value: i8) {
         // SAFETY: The pointer is derived from a reference, so it's writable.
         unsafe {
@@ -48,7 +50,8 @@ impl SpecFill<i8> for [i8] {
 
 macro spec_fill_int {
     ($($type:ty)*) => {$(
-        impl SpecFill<$type> for [$type] {
+        #[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
+        impl const SpecFill<$type> for [$type] {
             #[inline]
             fn spec_fill(&mut self, value: $type) {
                 // We always take this fastpath in Miri for long slices as the manual `for`

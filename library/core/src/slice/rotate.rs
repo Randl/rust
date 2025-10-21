@@ -11,7 +11,6 @@ type BufType = [usize; 32];
 ///
 /// The specified range must be valid for reading and writing.
 #[inline]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 pub(super) const unsafe fn ptr_rotate<T>(left: usize, mid: *mut T, right: usize) {
     if T::IS_ZST {
         return;
@@ -119,7 +118,6 @@ const unsafe fn ptr_rotate_memmove<T>(left: usize, mid: *mut T, right: usize) {
 ///
 /// The specified range must be valid for reading and writing.
 #[inline]
-#[rustc_const_unstable(feature = "const_trait_impl", issue = "67792")]
 const unsafe fn ptr_rotate_gcd<T>(left: usize, mid: *mut T, right: usize) {
     // Algorithm 2
     // Microbenchmarks indicate that the average performance for random shifts is better all
