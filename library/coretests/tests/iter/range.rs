@@ -641,3 +641,12 @@ fn test_nonzero_range() {
         (usize::MAX, Some(usize::MAX))
     );
 }
+
+#[test]
+fn test_const_range() {
+    const {
+        for i in 0..5 {
+            assert!(i * 2 == [0, 2, 4, 6, 8][i]);
+        }
+    }
+}
