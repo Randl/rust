@@ -3,6 +3,7 @@ use crate::iter::{
     Cloned, Copied, Empty, Filter, FilterMap, Fuse, FusedIterator, Map, Once, OnceWith,
     TrustedFused, TrustedLen,
 };
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{ControlFlow, Try};
 use crate::{array, fmt, option, result};
@@ -19,7 +20,12 @@ pub struct FlatMap<I, U: IntoIterator, F> {
 }
 
 impl<I: Iterator, U: IntoIterator, F: FnMut(I::Item) -> U> FlatMap<I, U, F> {
-    pub(in crate::iter) fn new(iter: I, f: F) -> FlatMap<I, U, F> {
+    #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+    pub(in crate::iter) const fn new(iter: I, f: F) -> FlatMap<I, U, F>
+    where
+        I: [const] Iterator + [const] Destruct,
+        F: [const] FnMut(I::Item) -> U + [const] Destruct,
+    {
         FlatMap { inner: FlattenCompat::new(iter.map(f)) }
     }
 

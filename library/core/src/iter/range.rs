@@ -1597,7 +1597,7 @@ const impl<A: [const] Step + [const] Destruct> Iterator for ops::RangeInclusive<
         self.spec_try_fold(init, f)
     }
 
-    impl_fold_via_try_fold_const! { fold -> try_fold }
+    impl_fold_via_try_fold! { const fold -> try_fold }
 
     #[inline]
     fn last(mut self) -> Option<A>
@@ -1674,7 +1674,7 @@ const impl<A: [const] Step + [const] Destruct> DoubleEndedIterator for ops::Rang
         self.spec_try_rfold(init, f)
     }
 
-    impl_fold_via_try_fold_const! { rfold -> try_rfold }
+    impl_fold_via_try_fold! { const rfold -> try_rfold }
 }
 
 // Safety: See above implementation for `ops::Range<A>`

@@ -32,7 +32,8 @@ pub struct StepBy<I> {
 
 impl<I> StepBy<I> {
     #[inline]
-    pub(in crate::iter) fn new(iter: I, step: usize) -> StepBy<I> {
+    #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+    pub(in crate::iter) const fn new(iter: I, step: usize) -> StepBy<I> {
         assert!(step != 0);
         let iter = <I as SpecRangeSetup<I>>::setup(iter, step);
         StepBy { iter, step_minus_one: step - 1, first_take: true }
@@ -149,11 +150,13 @@ impl<I> FusedIterator for StepBy<I> where I: FusedIterator {}
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<I> TrustedLen for StepBy<I> where I: Iterator + TrustedRandomAccess {}
 
-trait SpecRangeSetup<T> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const trait SpecRangeSetup<T> {
     fn setup(inner: T, step: usize) -> T;
 }
 
-impl<T> SpecRangeSetup<T> for T {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<T> SpecRangeSetup<T> for T {
     #[inline]
     default fn setup(inner: T, _step: usize) -> T {
         inner
@@ -431,12 +434,14 @@ unsafe impl<I: DoubleEndedIterator + ExactSizeIterator> StepByBackImpl<I> for St
 /// `Range`. This accessor exposes that shared range so one specialization can
 /// serve both: it is an identity for `Range<T>` and unwraps the newtype for
 /// `RangeIter<T>`, so it compiles away.
-trait AsLegacyRange<T> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const trait AsLegacyRange<T> {
     fn as_legacy_range(&self) -> &Range<T>;
     fn as_legacy_range_mut(&mut self) -> &mut Range<T>;
 }
 
-impl<T> AsLegacyRange<T> for Range<T> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<T> AsLegacyRange<T> for Range<T> {
     #[inline]
     fn as_legacy_range(&self) -> &Range<T> {
         self
@@ -447,7 +452,8 @@ impl<T> AsLegacyRange<T> for Range<T> {
     }
 }
 
-impl<T> AsLegacyRange<T> for RangeIter<T> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<T> AsLegacyRange<T> for RangeIter<T> {
     #[inline]
     fn as_legacy_range(&self) -> &Range<T> {
         &self.0
@@ -463,7 +469,8 @@ macro_rules! spec_int_ranges {
 
         const _: () = assert!(usize::BITS >= <$t>::BITS);
 
-        impl SpecRangeSetup<$ctor<$t>> for $ctor<$t> {
+        #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+        const impl SpecRangeSetup<$ctor<$t>> for $ctor<$t> {
             #[inline]
             fn setup(mut r: $ctor<$t>, step: usize) -> $ctor<$t> {
                 let inner_len = r.size_hint().0;

@@ -1,3 +1,4 @@
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::{NeverShortCircuit, Try};
 
@@ -13,7 +14,8 @@ pub struct ByRefSized<'a, I>(pub &'a mut I);
 // to avoid accidentally calling the `&mut Iterator` implementations.
 
 #[unstable(feature = "std_internals", issue = "none")]
-impl<I: Iterator> Iterator for ByRefSized<'_, I> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<I: [const] Iterator> Iterator for ByRefSized<'_, I> {
     type Item = I::Item;
 
     #[inline]
@@ -27,19 +29,25 @@ impl<I: Iterator> Iterator for ByRefSized<'_, I> {
     }
 
     #[inline]
-    fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>> {
+    fn advance_by(&mut self, n: usize) -> Result<(), NonZero<usize>>
+    where
+        I::Item: [const] Destruct,
+    {
         I::advance_by(self.0, n)
     }
 
     #[inline]
-    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+    fn nth(&mut self, n: usize) -> Option<Self::Item>
+    where
+        I::Item: [const] Destruct,
+    {
         I::nth(self.0, n)
     }
 
     #[inline]
     fn fold<B, F>(self, init: B, f: F) -> B
     where
-        F: FnMut(B, Self::Item) -> B,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
     {
         // `fold` needs ownership, so this can't forward directly.
         I::try_fold(self.0, init, NeverShortCircuit::wrap_mut_2(f)).0
@@ -48,15 +56,19 @@ impl<I: Iterator> Iterator for ByRefSized<'_, I> {
     #[inline]
     fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         I::try_fold(self.0, init, f)
     }
 }
 
 #[unstable(feature = "std_internals", issue = "none")]
-impl<I: DoubleEndedIterator> DoubleEndedIterator for ByRefSized<'_, I> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<I: [const] DoubleEndedIterator> DoubleEndedIterator for ByRefSized<'_, I>
+where
+    I::Item: [const] Destruct,
+{
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
         I::next_back(self.0)
@@ -75,7 +87,7 @@ impl<I: DoubleEndedIterator> DoubleEndedIterator for ByRefSized<'_, I> {
     #[inline]
     fn rfold<B, F>(self, init: B, f: F) -> B
     where
-        F: FnMut(B, Self::Item) -> B,
+        F: [const] FnMut(B, Self::Item) -> B + [const] Destruct,
     {
         // `rfold` needs ownership, so this can't forward directly.
         I::try_rfold(self.0, init, NeverShortCircuit::wrap_mut_2(f)).0
@@ -84,8 +96,8 @@ impl<I: DoubleEndedIterator> DoubleEndedIterator for ByRefSized<'_, I> {
     #[inline]
     fn try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where
-        F: FnMut(B, Self::Item) -> R,
-        R: Try<Output = B>,
+        F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = B>,
     {
         I::try_rfold(self.0, init, f)
     }
