@@ -2,6 +2,7 @@ use crate::fmt;
 use crate::iter::adapters::zip::try_get_unchecked;
 use crate::iter::adapters::{SourceIter, TrustedRandomAccess, TrustedRandomAccessNoCoerce};
 use crate::iter::{FusedIterator, InPlaceIterable, TrustedFused, TrustedLen};
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::ops::Try;
 
@@ -81,24 +82,27 @@ impl<I: fmt::Debug, F> fmt::Debug for Map<I, F> {
     }
 }
 
-fn map_fold<T, B, Acc>(
-    mut f: impl FnMut(T) -> B,
-    mut g: impl FnMut(Acc, B) -> Acc,
-) -> impl FnMut(Acc, T) -> Acc {
-    move |acc, elt| g(acc, f(elt))
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const fn map_fold<T, B, Acc>(
+    mut f: impl [const] FnMut(T) -> B + [const] Destruct,
+    mut g: impl [const] FnMut(Acc, B) -> Acc + [const] Destruct,
+) -> impl [const] FnMut(Acc, T) -> Acc + [const] Destruct {
+    const move |acc, elt| g(acc, f(elt))
 }
 
-fn map_try_fold<'a, T, B, Acc, R>(
-    f: &'a mut impl FnMut(T) -> B,
-    mut g: impl FnMut(Acc, B) -> R + 'a,
-) -> impl FnMut(Acc, T) -> R + 'a {
-    move |acc, elt| g(acc, f(elt))
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const fn map_try_fold<'a, T, B, Acc, R>(
+    f: &'a mut (impl [const] FnMut(T) -> B + [const] Destruct),
+    mut g: impl [const] FnMut(Acc, B) -> R + [const] Destruct + 'a,
+) -> impl [const] FnMut(Acc, T) -> R + [const] Destruct + 'a {
+    const move |acc, elt| g(acc, f(elt))
 }
 
 #[stable(feature = "rust1", since = "1.0.0")]
-impl<B, I: Iterator, F> Iterator for Map<I, F>
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<B, I: [const] Iterator + [const] Destruct, F> Iterator for Map<I, F>
 where
-    F: FnMut(I::Item) -> B,
+    F: [const] FnMut(I::Item) -> B + [const] Destruct,
 {
     type Item = B;
 
@@ -115,15 +119,15 @@ where
     fn try_fold<Acc, G, R>(&mut self, init: Acc, g: G) -> R
     where
         Self: Sized,
-        G: FnMut(Acc, Self::Item) -> R,
-        R: Try<Output = Acc>,
+        G: [const] FnMut(Acc, Self::Item) -> R + [const] Destruct,
+        R: [const] Try<Output = Acc>,
     {
         self.iter.try_fold(init, map_try_fold(&mut self.f, g))
     }
 
     fn fold<Acc, G>(self, init: Acc, g: G) -> Acc
     where
-        G: FnMut(Acc, Self::Item) -> Acc,
+        G: [const] FnMut(Acc, Self::Item) -> Acc + [const] Destruct,
     {
         self.iter.fold(init, map_fold(self.f, g))
     }

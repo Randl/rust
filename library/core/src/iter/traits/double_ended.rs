@@ -519,7 +519,7 @@ const impl<I: [const] DoubleEndedIterator> DoubleEndedIteratorRefSpec for &mut I
 where
     I::Item: [const] Destruct,
 {
-    impl_fold_via_try_fold_const! { spec_rfold -> spec_try_rfold }
+    impl_fold_via_try_fold! { const  spec_rfold -> spec_try_rfold }
 
     fn spec_try_rfold<B, F, R>(&mut self, init: B, f: F) -> R
     where

@@ -4415,7 +4415,7 @@ const impl<I: [const] Iterator + ?Sized> IteratorRefSpec for &mut I {
 }
 #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 const impl<I: [const] Iterator> IteratorRefSpec for &mut I {
-    impl_fold_via_try_fold_const! { spec_fold -> spec_try_fold }
+    impl_fold_via_try_fold! { const spec_fold -> spec_try_fold }
     fn spec_try_fold<B, F, R>(&mut self, init: B, f: F) -> R
     where
         F: [const] FnMut(B, Self::Item) -> R + [const] Destruct,
