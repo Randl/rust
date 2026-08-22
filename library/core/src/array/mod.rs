@@ -1009,7 +1009,8 @@ impl<T> GuardBack<'_, T> {
     ///
     /// No more than N elements must be initialized.
     #[inline]
-    pub(crate) unsafe fn push_unchecked(&mut self, item: T) {
+    #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+    pub(crate) const unsafe fn push_unchecked(&mut self, item: T) {
         // SAFETY: If `initialized` was correct before and the caller does not
         // invoke this method more than N times, then writes will be in-bounds
         // and slots will not be initialized more than once.
@@ -1155,21 +1156,34 @@ const fn iter_next_chunk_erased<T>(
 ///
 /// Used for [`DoubleEndedIterator::next_chunk_back`].
 #[inline]
-pub(crate) fn iter_next_chunk_back<T, const N: usize>(
-    iter: &mut impl DoubleEndedIterator<Item = T>,
-) -> Result<[T; N], IntoIter<T, N>> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+pub(crate) const fn iter_next_chunk_back<T, const N: usize>(
+    iter: &mut impl [const] DoubleEndedIterator<Item = T>,
+) -> Result<[T; N], IntoIter<T, N>>
+where
+    T: [const] Destruct,
+{
     iter.spec_next_chunk_back()
 }
 
-pub(crate) trait SpecNextChunkBack<T, const N: usize>:
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+pub(crate) const trait SpecNextChunkBack<T, const N: usize>:
     DoubleEndedIterator<Item = T>
 {
-    fn spec_next_chunk_back(&mut self) -> Result<[T; N], IntoIter<T, N>>;
+    fn spec_next_chunk_back(&mut self) -> Result<[T; N], IntoIter<T, N>>
+    where
+        T: [const] Destruct;
 }
 
-impl<I: DoubleEndedIterator<Item = T>, T, const N: usize> SpecNextChunkBack<T, N> for I {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<I: [const] DoubleEndedIterator<Item = T>, T, const N: usize> SpecNextChunkBack<T, N>
+    for I
+{
     #[inline]
-    default fn spec_next_chunk_back(&mut self) -> Result<[T; N], IntoIter<T, N>> {
+    default fn spec_next_chunk_back(&mut self) -> Result<[T; N], IntoIter<T, N>>
+    where
+        T: [const] Destruct,
+    {
         let mut array = [const { MaybeUninit::uninit() }; N];
         let r = iter_next_chunk_back_erased(&mut array, self);
         match r {
@@ -1185,8 +1199,9 @@ impl<I: DoubleEndedIterator<Item = T>, T, const N: usize> SpecNextChunkBack<T, N
     }
 }
 
-impl<I: DoubleEndedIterator<Item = T> + TrustedLen, T, const N: usize> SpecNextChunkBack<T, N>
-    for I
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<I: [const] DoubleEndedIterator<Item = T> + TrustedLen, T, const N: usize>
+    SpecNextChunkBack<T, N> for I
 {
     fn spec_next_chunk_back(&mut self) -> Result<[T; N], IntoIter<T, N>> {
         let len = (*self).size_hint().0;
@@ -1206,9 +1221,10 @@ impl<I: DoubleEndedIterator<Item = T> + TrustedLen, T, const N: usize> SpecNextC
 }
 
 // SAFETY: `from` must have len items, and len items must be < N.
-unsafe fn write_back<T, const N: usize>(
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const unsafe fn write_back<T, const N: usize>(
     to: &mut [MaybeUninit<T>; N],
-    from: &mut impl DoubleEndedIterator<Item = T>,
+    from: &mut impl [const] DoubleEndedIterator<Item = T>,
     len: usize,
 ) {
     let mut guard = GuardBack { array_mut: to, initialized: 0 };
@@ -1227,10 +1243,14 @@ unsafe fn write_back<T, const N: usize>(
 /// Unfortunately this loop has two exit conditions, the buffer filling up
 /// or the iterator running out of items, making it tend to optimize poorly.
 #[inline]
-fn iter_next_chunk_back_erased<T>(
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const fn iter_next_chunk_back_erased<T>(
     buffer: &mut [MaybeUninit<T>],
-    iter: &mut impl DoubleEndedIterator<Item = T>,
-) -> Result<(), usize> {
+    iter: &mut impl [const] DoubleEndedIterator<Item = T>,
+) -> Result<(), usize>
+where
+    T: [const] Destruct,
+{
     // if `Iterator::next_back` panics, this guard will drop already initialized items
     let mut guard = GuardBack { array_mut: buffer, initialized: 0 };
     while guard.initialized < guard.array_mut.len() {
