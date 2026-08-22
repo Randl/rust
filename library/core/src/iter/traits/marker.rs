@@ -68,7 +68,7 @@ pub const unsafe trait TrustedLen: [const] Iterator {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
-unsafe impl<I: TrustedLen + ?Sized> TrustedLen for &mut I {}
+const unsafe impl<I: [const] TrustedLen + ?Sized> TrustedLen for &mut I {}
 
 /// An iterator that when yielding an item will have taken at least one element
 /// from its underlying [`SourceIter`].

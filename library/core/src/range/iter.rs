@@ -1,6 +1,7 @@
 use crate::iter::{
     FusedIterator, Step, TrustedLen, TrustedRandomAccess, TrustedRandomAccessNoCoerce, TrustedStep,
 };
+use crate::marker::Destruct;
 use crate::num::NonZero;
 use crate::range::{Range, RangeFrom, RangeInclusive, legacy};
 use crate::{intrinsics, mem};
@@ -65,7 +66,8 @@ unsafe_range_trusted_random_access_impl! {
 }
 
 #[stable(feature = "new_range_api", since = "1.96.0")]
-impl<A: Step> Iterator for RangeIter<A> {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const impl<A: [const] Step + [const] Destruct> Iterator for RangeIter<A> {
     type Item = A;
 
     #[inline]
@@ -96,7 +98,7 @@ impl<A: Step> Iterator for RangeIter<A> {
     #[inline]
     fn min(self) -> Option<A>
     where
-        A: Ord,
+        A: [const] Ord,
     {
         self.0.min()
     }
@@ -104,13 +106,16 @@ impl<A: Step> Iterator for RangeIter<A> {
     #[inline]
     fn max(self) -> Option<A>
     where
-        A: Ord,
+        A: [const] Ord,
     {
         self.0.max()
     }
 
     #[inline]
-    fn is_sorted(self) -> bool {
+    fn is_sorted(self) -> bool
+    where
+        Self: [const] Destruct,
+    {
         true
     }
 
