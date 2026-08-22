@@ -68,7 +68,7 @@ pub const unsafe trait TrustedLen: [const] Iterator {}
 
 #[unstable(feature = "trusted_len", issue = "37572")]
 #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
-unsafe impl<I: TrustedLen + ?Sized> TrustedLen for &mut I {}
+const unsafe impl<I: [const] TrustedLen + ?Sized> TrustedLen for &mut I {}
 
 /// An iterator that when yielding an item will have taken at least one element
 /// from its underlying [`SourceIter`].
@@ -115,4 +115,5 @@ pub unsafe trait InPlaceIterable {
 /// for details. Consumers are free to rely on the invariants in unsafe code.
 #[unstable(feature = "trusted_step", issue = "85731")]
 #[rustc_specialization_trait]
-pub unsafe trait TrustedStep: Step + Copy {}
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+pub const unsafe trait TrustedStep: [const] Step + Copy {}
