@@ -133,12 +133,12 @@ pub const trait DoubleEndedIterator: [const] Iterator {
     /// ```
     #[inline]
     #[unstable(feature = "iter_next_chunk", issue = "98326")]
-    #[rustc_non_const_trait_method]
     fn next_chunk_back<const N: usize>(
         &mut self,
     ) -> Result<[Self::Item; N], array::IntoIter<Self::Item, N>>
     where
         Self: Sized,
+        Self::Item: [const] Destruct,
     {
         crate::array::iter_next_chunk_back(self)
     }
