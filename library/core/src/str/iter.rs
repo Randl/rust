@@ -401,12 +401,14 @@ impl FusedIterator for Bytes<'_> {}
 unsafe impl TrustedLen for Bytes<'_> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl TrustedRandomAccess for Bytes<'_> {}
+const unsafe impl TrustedRandomAccess for Bytes<'_> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl TrustedRandomAccessNoCoerce for Bytes<'_> {
+const unsafe impl TrustedRandomAccessNoCoerce for Bytes<'_> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 

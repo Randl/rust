@@ -199,12 +199,14 @@ where
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I, F> TrustedRandomAccess for Map<I, F> where I: TrustedRandomAccess {}
+const unsafe impl<I, F> TrustedRandomAccess for Map<I, F> where I: TrustedRandomAccess {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I, F> TrustedRandomAccessNoCoerce for Map<I, F>
+const unsafe impl<I, F> TrustedRandomAccessNoCoerce for Map<I, F>
 where
     I: TrustedRandomAccessNoCoerce,
 {

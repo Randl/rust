@@ -1442,12 +1442,14 @@ unsafe impl<T> TrustedLen for Windows<'_, T> {}
 impl<T> FusedIterator for Windows<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for Windows<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for Windows<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for Windows<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for Windows<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -1622,12 +1624,14 @@ unsafe impl<T> TrustedLen for Chunks<'_, T> {}
 impl<T> FusedIterator for Chunks<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for Chunks<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for Chunks<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for Chunks<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for Chunks<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -1798,12 +1802,14 @@ unsafe impl<T> TrustedLen for ChunksMut<'_, T> {}
 impl<T> FusedIterator for ChunksMut<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for ChunksMut<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for ChunksMut<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for ChunksMut<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for ChunksMut<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -1977,12 +1983,14 @@ unsafe impl<T> TrustedLen for ChunksExact<'_, T> {}
 impl<T> FusedIterator for ChunksExact<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for ChunksExact<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for ChunksExact<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for ChunksExact<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for ChunksExact<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2140,12 +2148,14 @@ unsafe impl<T> TrustedLen for ChunksExactMut<'_, T> {}
 impl<T> FusedIterator for ChunksExactMut<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for ChunksExactMut<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for ChunksExactMut<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for ChunksExactMut<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for ChunksExactMut<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2273,12 +2283,14 @@ unsafe impl<T, const N: usize> TrustedLen for ArrayWindows<'_, T, N> {}
 impl<T, const N: usize> FusedIterator for ArrayWindows<'_, T, N> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<T, const N: usize> TrustedRandomAccess for ArrayWindows<'_, T, N> {}
+const unsafe impl<T, const N: usize> TrustedRandomAccess for ArrayWindows<'_, T, N> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<T, const N: usize> TrustedRandomAccessNoCoerce for ArrayWindows<'_, T, N> {
+const unsafe impl<T, const N: usize> TrustedRandomAccessNoCoerce for ArrayWindows<'_, T, N> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2437,12 +2449,14 @@ unsafe impl<T> TrustedLen for RChunks<'_, T> {}
 impl<T> FusedIterator for RChunks<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for RChunks<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for RChunks<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunks<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunks<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2608,12 +2622,14 @@ unsafe impl<T> TrustedLen for RChunksMut<'_, T> {}
 impl<T> FusedIterator for RChunksMut<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for RChunksMut<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for RChunksMut<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunksMut<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunksMut<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2794,12 +2810,14 @@ unsafe impl<T> TrustedLen for RChunksExact<'_, T> {}
 impl<T> FusedIterator for RChunksExact<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for RChunksExact<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for RChunksExact<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunksExact<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunksExact<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2967,12 +2985,14 @@ unsafe impl<T> TrustedLen for RChunksExactMut<'_, T> {}
 impl<T> FusedIterator for RChunksExactMut<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for RChunksExactMut<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for RChunksExactMut<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunksExactMut<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for RChunksExactMut<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
@@ -2983,22 +3003,26 @@ unsafe impl<T> Send for RChunksExactMut<'_, T> where T: Send {}
 unsafe impl<T> Sync for RChunksExactMut<'_, T> where T: Sync {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for Iter<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for Iter<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for Iter<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for Iter<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccess for IterMut<'a, T> {}
+const unsafe impl<'a, T> TrustedRandomAccess for IterMut<'a, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<'a, T> TrustedRandomAccessNoCoerce for IterMut<'a, T> {
+const unsafe impl<'a, T> TrustedRandomAccessNoCoerce for IterMut<'a, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 

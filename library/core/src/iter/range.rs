@@ -982,12 +982,14 @@ macro_rules! range_exact_iter_impl {
 macro_rules! unsafe_range_trusted_random_access_impl {
     ($($t:ty)*) => ($(
         #[doc(hidden)]
+        #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
         #[unstable(feature = "trusted_random_access", issue = "none")]
-        unsafe impl TrustedRandomAccess for ops::Range<$t> {}
+        const unsafe impl TrustedRandomAccess for ops::Range<$t> {}
 
         #[doc(hidden)]
+        #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
         #[unstable(feature = "trusted_random_access", issue = "none")]
-        unsafe impl TrustedRandomAccessNoCoerce for ops::Range<$t> {
+        const unsafe impl TrustedRandomAccessNoCoerce for ops::Range<$t> {
             const MAY_HAVE_SIDE_EFFECT: bool = false;
         }
     )*)

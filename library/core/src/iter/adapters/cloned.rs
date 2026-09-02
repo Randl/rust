@@ -122,12 +122,14 @@ where
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccess for Cloned<I> where I: TrustedRandomAccess {}
+const unsafe impl<I> TrustedRandomAccess for Cloned<I> where I: TrustedRandomAccess {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccessNoCoerce for Cloned<I>
+const unsafe impl<I> TrustedRandomAccessNoCoerce for Cloned<I>
 where
     I: TrustedRandomAccessNoCoerce,
 {

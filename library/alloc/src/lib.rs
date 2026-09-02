@@ -114,6 +114,7 @@
 #![feature(const_eval_select)]
 #![feature(const_heap)]
 #![feature(const_index)]
+#![feature(const_iter)]
 #![feature(const_option_ops)]
 #![feature(const_result_trait_fn)]
 #![feature(const_try)]

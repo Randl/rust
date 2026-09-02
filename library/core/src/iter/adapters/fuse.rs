@@ -237,17 +237,19 @@ impl<I: Default> Default for Fuse<I> {
 unsafe impl<I> TrustedLen for Fuse<I> where I: TrustedLen {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
 // SAFETY: `TrustedRandomAccess` requires that `size_hint()` must be exact and cheap to call, and
 // `Iterator::__iterator_get_unchecked()` must be implemented accordingly.
 //
 // This is safe to implement as `Fuse` is just forwarding these to the wrapped iterator `I`, which
 // preserves these properties.
-unsafe impl<I> TrustedRandomAccess for Fuse<I> where I: TrustedRandomAccess {}
+const unsafe impl<I> TrustedRandomAccess for Fuse<I> where I: TrustedRandomAccess {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccessNoCoerce for Fuse<I>
+const unsafe impl<I> TrustedRandomAccessNoCoerce for Fuse<I>
 where
     I: TrustedRandomAccessNoCoerce,
 {

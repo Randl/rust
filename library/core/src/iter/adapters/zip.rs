@@ -437,20 +437,22 @@ where
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<A, B> TrustedRandomAccess for Zip<A, B>
+const unsafe impl<A, B> TrustedRandomAccess for Zip<A, B>
 where
-    A: TrustedRandomAccess,
-    B: TrustedRandomAccess,
+    A: [const] TrustedRandomAccess,
+    B: [const] TrustedRandomAccess,
 {
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<A, B> TrustedRandomAccessNoCoerce for Zip<A, B>
+const unsafe impl<A, B> TrustedRandomAccessNoCoerce for Zip<A, B>
 where
-    A: TrustedRandomAccessNoCoerce,
-    B: TrustedRandomAccessNoCoerce,
+    A: [const] TrustedRandomAccessNoCoerce,
+    B: [const] TrustedRandomAccessNoCoerce,
 {
     const MAY_HAVE_SIDE_EFFECT: bool = A::MAY_HAVE_SIDE_EFFECT || B::MAY_HAVE_SIDE_EFFECT;
 }
@@ -589,10 +591,7 @@ impl<A: Debug + TrustedRandomAccessNoCoerce, B: Debug + TrustedRandomAccessNoCoe
 #[unstable(feature = "trusted_random_access", issue = "none")]
 #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[rustc_specialization_trait]
-pub const unsafe trait TrustedRandomAccess:
-    [const] TrustedRandomAccessNoCoerce
-{
-}
+pub const unsafe trait TrustedRandomAccess: const TrustedRandomAccessNoCoerce {}
 
 /// Like [`TrustedRandomAccess`] but without any of the requirements / guarantees around
 /// coercions to supertypes after `__iterator_get_unchecked` (they aren’t allowed here!), and

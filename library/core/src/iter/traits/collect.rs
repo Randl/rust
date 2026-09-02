@@ -418,7 +418,7 @@ pub const trait Extend<T> {
     #[stable(feature = "rust1", since = "1.0.0")]
     fn extend<I: [const] IntoIterator<Item = T>>(&mut self, iter: I)
     where
-        T::IntoIter: [const] Destruct;
+        I::IntoIter: [const] Destruct;
 
     /// Extends a collection with exactly one element.
     #[unstable(feature = "extend_one", issue = "72631")]

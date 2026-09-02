@@ -454,15 +454,17 @@ macro_rules! casemappingiter_impls {
 
         // SAFETY: forwards to inner `array::IntoIter`
         #[doc(hidden)]
+        #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
         #[unstable(feature = "std_internals", issue = "none")]
-        unsafe impl TrustedRandomAccessNoCoerce for $ITER_NAME {
+        const unsafe impl TrustedRandomAccessNoCoerce for $ITER_NAME {
             const MAY_HAVE_SIDE_EFFECT: bool = false;
         }
 
         // SAFETY: this iter has no subtypes/supertypes
         #[doc(hidden)]
+        #[rustc_const_unstable(feature = "const_iter", issue = "92476")]
         #[unstable(feature = "std_internals", issue = "none")]
-        unsafe impl TrustedRandomAccess for $ITER_NAME {}
+        const unsafe impl TrustedRandomAccess for $ITER_NAME {}
 
         #[$displaystab]
         impl fmt::Display for $ITER_NAME {
@@ -623,12 +625,14 @@ impl FusedIterator for CaseMappingIter {}
 unsafe impl TrustedLen for CaseMappingIter {}
 
 // SAFETY: forwards to inner `array::IntoIter`
-unsafe impl TrustedRandomAccessNoCoerce for CaseMappingIter {
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const unsafe impl TrustedRandomAccessNoCoerce for CaseMappingIter {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }
 
 // SAFETY: `CaseMappingIter` has no subtypes/supertypes
-unsafe impl TrustedRandomAccess for CaseMappingIter {}
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
+const unsafe impl TrustedRandomAccess for CaseMappingIter {}
 
 impl fmt::Display for CaseMappingIter {
     #[inline]

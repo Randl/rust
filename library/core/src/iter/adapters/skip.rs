@@ -270,12 +270,14 @@ unsafe impl<I: InPlaceIterable> InPlaceIterable for Skip<I> {
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccess for Skip<I> where I: TrustedRandomAccess {}
+const unsafe impl<I> TrustedRandomAccess for Skip<I> where I: TrustedRandomAccess {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccessNoCoerce for Skip<I>
+const unsafe impl<I> TrustedRandomAccessNoCoerce for Skip<I>
 where
     I: TrustedRandomAccessNoCoerce,
 {

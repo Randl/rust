@@ -222,11 +222,13 @@ impl<T> FusedIterator for Iter<'_, T> {}
 unsafe impl<T> TrustedLen for Iter<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<T> TrustedRandomAccess for Iter<'_, T> {}
+const unsafe impl<T> TrustedRandomAccess for Iter<'_, T> {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<T> TrustedRandomAccessNoCoerce for Iter<'_, T> {
+const unsafe impl<T> TrustedRandomAccessNoCoerce for Iter<'_, T> {
     const MAY_HAVE_SIDE_EFFECT: bool = false;
 }

@@ -261,12 +261,14 @@ where
 }
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccess for Enumerate<I> where I: TrustedRandomAccess {}
+const unsafe impl<I> TrustedRandomAccess for Enumerate<I> where I: TrustedRandomAccess {}
 
 #[doc(hidden)]
+#[rustc_const_unstable(feature = "const_iter", issue = "92476")]
 #[unstable(feature = "trusted_random_access", issue = "none")]
-unsafe impl<I> TrustedRandomAccessNoCoerce for Enumerate<I>
+const unsafe impl<I> TrustedRandomAccessNoCoerce for Enumerate<I>
 where
     I: TrustedRandomAccessNoCoerce,
 {
